@@ -59,4 +59,5 @@ yum -y install make zlib zlib-devel gcc-c++ libtool openssl openssl-devel
 > 重新加载nginx
 
 `./nignx -s reload`
+
 ## nginx配置文件

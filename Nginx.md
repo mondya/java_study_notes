@@ -96,4 +96,23 @@ http块包括http全局块和server块
   - 浏览器访问http://192.168.225.100:8080/
   ![](./images/tomcat.jpg)
   ![](./images/windows-nginx-tomcat.jpg)
+- 具体配置
+  - 在windows系统的host文件中进行域名和ip对应关系的配置
+```java
+192.168.225.100 www.123.com
+```
+  -在nginx配置文件中配置
+  ```java
+//修改server开中的server_name
+server_name  192.168.225.100
+//在location块中添加
+ proxy_pass http://127.0.0.1:8080;
+  ``` 
 
+  重启nginx,启动tomcat,访问www.123.com
+  ![](./images/nginxwww123.jpg)
+  ## Nginx配置实例-反向代理2
+  > 实现效果：使用nginx反向代理，根据访问的路径跳转到不同的端口的服务中,nginx监听端口为9001
+
+  > 访问http://127.0.0.1:9001/edu/直接跳转到127.0.0.1:8080
+  访问http://127.0.0.1:9001/vod/直接跳转到127.0.0.1:8081

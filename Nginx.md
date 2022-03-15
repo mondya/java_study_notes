@@ -60,9 +60,6 @@ yum -y install make zlib zlib-devel gcc-c++ libtool openssl openssl-devel
 `./nignx -s reload`
 
 ## nginx配置文件
-<<<<<<< HEAD
-
-=======
 > 文件位置
 
 ```bash

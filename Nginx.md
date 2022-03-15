@@ -97,6 +97,6 @@ http块包括http全局块和server块
   - 进入tomcat的bin目录，./start.sh启动tomcat服务器
   - 对外开放访问的端口
   - 浏览器访问http://192.168.225.100:8080/
-![](./images/tomcat.jpg)
-![](./images/windows-nginx-tomcat.jpg)
->>>>>>> bd4d4d09fcb9dd81c21048ddc6324ae85f460541
+  ![](./images/tomcat.jpg)
+  ![](./images/windows-nginx-tomcat.jpg)
+

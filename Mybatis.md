@@ -450,7 +450,7 @@ Mybatis默认的事务管理器就是JDBC,连接池：POOLED
 
 可以通过properties属性实现引用配置文件
 
-![image-20201130233209499](D:\images\image-20201130233209499.png)
+![image-20201130233209499](images/image-20201130233209499.png)
 
 > 编写一个配置文件 db.properties
 

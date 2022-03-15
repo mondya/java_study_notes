@@ -44,7 +44,6 @@ yum -y install make zlib zlib-devel gcc-c++ libtool openssl openssl-devel
 `sudo firewall-cmd --add-port=80/tcp --permanent`开放80端口
 `firewall-cmd reload`重启防火墙
 `ps -ef | grep nginx`查看后台
-![](./images/nginx.jpg)
 ## nignx常用命令
 > 查看版本
 
@@ -61,3 +60,4 @@ yum -y install make zlib zlib-devel gcc-c++ libtool openssl openssl-devel
 `./nignx -s reload`
 
 ## nginx配置文件
+

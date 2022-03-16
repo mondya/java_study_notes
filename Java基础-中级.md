@@ -12,7 +12,7 @@
 
 Java对异常进行了分类，不同类型的异常分别用不同的Java类表示，所有异常的根类为java.lang.Throwable，Throwable下面又派生了两个子类：Error和Exception。
 
-![图6-2 Java异常类层次结构图.png](D:\images\1495272017528669.png)
+![图6-2 Java异常类层次结构图.png](.\images\1495272017528669.png)
 
 ### Error
 

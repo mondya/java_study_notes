@@ -161,7 +161,7 @@ Map<String, Integer> studentMap = list.stream().collect(Collectors.toMap(Student
 String joinName = list.stream().map(Student::getName).collect(Collectors.joining(",", "(", ")")); // (aa,bb,cc)
  
 //聚合操作
-//1.学生总数
+//1.学生总数	
 Long count = list.stream().collect(Collectors.counting()); // 3
 //2.最大年龄 (最小的minBy同理)
 Integer maxAge = list.stream().map(Student::getAge).collect(Collectors.maxBy(Integer::compare)).get(); // 20

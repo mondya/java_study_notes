@@ -107,7 +107,7 @@ http块包括http全局块和server块
 server_name  192.168.225.100
 //在location块中添加
  proxy_pass http://127.0.0.1:8080;
-  ``` 
+  ```
 
   重启nginx,启动tomcat,访问www.123.com
   ![](./images/nginxwww123.jpg)
@@ -116,3 +116,6 @@ server_name  192.168.225.100
 
   > 访问http://127.0.0.1:9001/edu/直接跳转到127.0.0.1:8080
   访问http://127.0.0.1:9001/vod/直接跳转到127.0.0.1:8081
+
+- 在src目录下新建tomcat8080,tomcat8081目录，目录中放两个tomcat，修改其中一个端口号，防止端口号冲突，分别启动
+- 

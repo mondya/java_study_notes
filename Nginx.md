@@ -103,7 +103,7 @@ http块包括http全局块和server块
 ```
   -在nginx配置文件中配置
   ```java
-//修改server开中的server_name
+//修改server块中的server_name
 server_name  192.168.225.100
 //在location块中添加
  proxy_pass http://127.0.0.1:8080;
@@ -111,11 +111,71 @@ server_name  192.168.225.100
 
   重启nginx,启动tomcat,访问www.123.com
   ![](./images/nginxwww123.jpg)
-  ## Nginx配置实例-反向代理2
+
+## Nginx配置实例-反向代理2
+
   > 实现效果：使用nginx反向代理，根据访问的路径跳转到不同的端口的服务中,nginx监听端口为9001
 
-  > 访问http://127.0.0.1:9001/edu/直接跳转到127.0.0.1:8080
-  访问http://127.0.0.1:9001/vod/直接跳转到127.0.0.1:8081
+  > 访问http://192.168.225.100:9001/edu/直接跳转到127.0.0.1:8080
+  访问http://192.168.225.100/vod/直接跳转到127.0.0.1:8081
 
 - 在src目录下新建tomcat8080,tomcat8081目录，目录中放两个tomcat，修改其中一个端口号，防止端口号冲突，分别启动
-- 
+- 分别在tomcat的webapps文件下新建a.html
+- 配置nginx
+
+```java
+    server {
+        listen       9001;
+        server_name  192.168.255.100;
+
+        location ~/edu/ {
+            proxy_pass http://127.0.0.1:8080;
+        }
+
+        location ~/vod/ {
+            proxy_pass http://127.0.0.1:8081;
+        }
+    }
+
+```
+- 开放对外访问的端口号 9001,8080,8081
+
+![](./images/nginx9001edu.jpg)
+![](./images/nginx9001vod.jpg)
+## Nginx配置实例-负载均衡
+> 实现效果：浏览器地址栏输入 http://192.168.225.100/edu/a.html,负载均衡效果，平均到8080和8081端口中
+
+- 启动两个tomcat服务器，两个服务器的webapps文件夹中都放入edu/a.html,内容不同
+- 在nginx配置文件中进行负载均衡设置
+
+```java
+    upstream myserver { //myserver:服务名称
+        server 192.168.225.100:8080;
+        server 192.168.255.100:8081;
+    }
+    server {
+        listen      80;
+        server_name  192.168.225.100;
+
+        #charset koi8-r;
+
+        #access_log  logs/host.access.log  main;
+
+        location / {
+            root   html;
+            proxy_pass http://myserver;
+            index  index.html index.htm;
+        }
+
+```
+![](./images/%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A18080.jpg)
+![](./images/%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A18081.jpg)
+### nginx负载均衡分配方式
+#### 轮询（默认）
+每个请求按时间顺序逐一分配到不同的后端服务器，如果后端服务器宕机，能自动剔除
+#### weight（权重）
+weight代表权重，默认为1，权重越高被分配的客户端越多
+#### ip hash
+每个请求按访问ip的hash结果分配，这样每个访客固定访问一个后端服务器，可以解决session的问题
+#### fair(第三方)
+按后端服务器的响应时间来分配请求，响应时间短的优先分配

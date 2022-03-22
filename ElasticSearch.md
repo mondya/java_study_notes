@@ -15,13 +15,14 @@ http.cors.enabled: true
 http.cors.allow-origin: "*"
 ```
 或者直接在chrome浏览器搜索ElasticSearch-head插件，也能够实现可视化界面
-![](/images/elasticsearch.jpg)
+![](./images/elasticsearch.jpg)
+
 ### 安装Kibana
 Kibana是一个针对ElasticSearch的开源分析及可视化平台，用来搜索，查看交互存储在ElasticSearch索引的数据。
 - 下载压缩包，解压
 - 启动进入界面
 
-![](/images/kibana.jpg)
+![](./images/kibana.jpg)
 
 # ES核心概念
 ==ElasticSearch面向文档==
@@ -42,13 +43,13 @@ ik提供了两种分词算法：ik_smart（最少切分）和ik_max_word（最�
 - 重启elasticsearch
   - ik_smart
 
-![](/images/ik-_smart.jpg)
+![](./images/ik-_smart.jpg)
   - ik_max-word
 
-![](/images/ik_max-word.jpg)
+![](./images/ik_max-word.jpg)
 > 配置自己的分词
 
-![](/images/mydic.jpg)
+![](./images/mydic.jpg)
 
 # Rest风格说明
 基本rest命令说明：
@@ -69,7 +70,7 @@ ik提供了两种分词算法：ik_smart（最少切分）和ik_max_word（最�
 PUT /索引名称/类型名称/文档id
 {请求体}
 ```
-![](/images/PUT.jpg)
+![](./images/PUT.jpg)
 - 创建索引，指定类型
 
 ```java
@@ -122,8 +123,8 @@ PUT /xhh2/user/1/
 - put如果不传值就会被覆盖
 - post灵活性更好，可以只修改一处的值
 
-
 ==kibana推荐写法：`POST /{index}/_update/{id}`==
+
 - 查询数据
 
 ```java
@@ -131,7 +132,7 @@ GET /xhh2/user/1
 或者使用
 GET /xhh2/user/_search?q=desc:你
 ```
-![](/images/hits.jpg)
+![](./images/hits.jpg)
 - 高级查询
 
 ```java
@@ -155,7 +156,7 @@ GET /xhh2/user/_search
 }
 ```
 
-![](/images/get进阶.jpg)
+![](./images/get进阶.jpg)
 
 - 多重条件查询(bool)
 
@@ -231,7 +232,7 @@ GET /testdb/_doc/_search
   }
 }
 ```
-![](/images/highlight.jpg)
+![](./images/highlight.jpg)
 #集成Springboot
 > maven依赖
 

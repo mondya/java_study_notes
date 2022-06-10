@@ -38,3 +38,34 @@ RocketMQ中每个消息拥有唯一的MessageId, 且可以携带业务标识的k
 
 - offsetMsgId：由Broker端生成，其规则为:brokerIp + 物理分区的offset
 - key：由用户指定的业务相关的唯一标识
+
+
+
+## 系统架构
+
+RocketMQ架构上主要分为四部分构成：
+
+### 1.Producer
+
+消息生产者，负责生产消息。Producer通过MQ的负载均衡模块选择相应的Broker集群队列进行消息投递，投递的过程支持快速失败并且低延迟。
+
+RocketMQ中的消息生产者都是以生产者组(Producer Group)的形式出现的。生产者组是同一类生产者的集合，这类Producer发送相同的Topic类型的消息。
+
+一个生产者组可以同时发送多个主题的消息。
+
+### 2.Consumer
+
+消息消费者，负责消费消息。一个消息消费者会从Broker服务器中获取到消息，并对消息进行相关业务处理。RocketMQ中的消息消费者都是以消费者组(Consumer Group)的形式出现的。消费者组是同一类消费者的集合，这类Consumer消费的同一个Topic类型的消息。消费者组使得在消息消费方面，实现负载均衡和容错的目标变得非常容易。
+
+消费组中Consumer的数量应该小于等于订阅Topic的Queue数量。如果超过Queue数量，则多出的Consumer将不能消费消息。
+
+消费组中的消费者可以同时消费多个Queue,一个主题中的Queue只能被一个Consumer消费
+
+### 3.Name Server
+
+NameServer是一个Broker与Topic路由的注册中心，支持Broker的动态注册与发现。
+
+主要包括两个功能：
+
+- Broker管理：接受Broker集群的注册信息并且保存下来作为路由信息的基本数据；提供心跳检测机制，检查Broker是否存活。
+- 路由信息管理：每个NameServer中都保存着Broker集群的整个路由信息和用户客户端查询的队列信息。Producer和Consumer通过NameServer可以获取整个Broker集群的路由信息，从而信息消息的投递和消费。

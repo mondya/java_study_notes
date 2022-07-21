@@ -88,6 +88,41 @@ NameServer通常是以集群的方式部署，NameServer是无状态的，即Nam
 
 RockerMQ的路由发现采用的是Pull模型。当Topic路由信息出现变化时，NameServer不会主动推送给客户端，而是客户端定时拉取主题最新的路由。默认客户端每30秒会拉取一次最新的路由。
 
+> push模型：推送模型。实时性较好，是一个“发布-订阅”模型，需要维护一个长连接。而长连接的维护是需要成本的。
+>
+> pull模型：拉取模型。实时性较差。
+
 #### 客户端NameServer选择策略
 
+> Producer与Consumer
+
 客户端在配置时必须填写NameServer集群地址，客户端在连接NameServer节点时首先随机数，然后在与NameServer节点数量取模，此时得到的就是所要连接节点的索引，然后进行连接。如果连接失败，则会采用round-robin策略，逐个尝试去连接其他节点。
+
+首先采用的是`随机策略`进行选择，失败后采用`轮询策略`
+
+### 4.Broker
+
+#### 功能介绍
+
+Broker充当着消息中转的角色，负责存储消息、转发消息。Broker在RocketMQ系统中负责接收并存储从生产者发送来的消息，同时为消费者的拉取请求作准备。Broker同时也存储着消息相关的元数据，包括消费者组进度偏移offset、主题、队列等。
+
+
+
+![image-20220721215923086](D:\study_code\java_study_notes\images\image-20220721215923086.png)
+
+==Remote Module==：整个Broker的实体，负责处理来自clients端的请求。而这个Broker实体则由以下模块构成。
+
+`Client Manager`：客户端管理器。负责接收、解析客户端(Producer/Consumer)请求，管理客户端。例如，维护Consumer的Topic订阅消息。
+
+`Stroe Service`：存储服务。提供方便简单的API接口，处理消息存储到物理硬盘和消息查询功能。
+
+`HA Service`：高可用服务，提供Master Broker和Slave Broker之间的数据同步功能。
+
+`Index Service`：索引服务。根据特定的Message key,对投递到Broker的消息进行索引服务，同时也提供根据Message Key对消息进行快速查询的功能。
+
+#### 集群部署
+
+为了增强Broker性能与吞吐量，Broker一般都是以集群的形式出现的。各集群节点中可能存放着相同Topic的不同Queue。Broker节点集群是一个主从集群，即集群中具有master和slave两种角色。Master负责处理读写操作请求，而slave负责读操作请求。一个Master可以包含多个Slave，但是一个slave只能属于一个Master。Master和Slave的对应关系是通过指定相同的BrokerName、不同的BrokerId来确定的。BrokerId为0表示Master，非0表示Slave。每个Master和Slave集群中的所有节点建立长连接，定时注册Topic信息到所有NameServer。
+
+ 
+

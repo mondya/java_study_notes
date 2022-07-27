@@ -122,7 +122,38 @@ Broker充当着消息中转的角色，负责存储消息、转发消息。Broke
 
 #### 集群部署
 
-为了增强Broker性能与吞吐量，Broker一般都是以集群的形式出现的。各集群节点中可能存放着相同Topic的不同Queue。Broker节点集群是一个主从集群，即集群中具有master和slave两种角色。Master负责处理读写操作请求，而slave负责读操作请求。一个Master可以包含多个Slave，但是一个slave只能属于一个Master。Master和Slave的对应关系是通过指定相同的BrokerName、不同的BrokerId来确定的。BrokerId为0表示Master，非0表示Slave。每个Master和Slave集群中的所有节点建立长连接，定时注册Topic信息到所有NameServer。
+![](./images/RocketMQ-0726.png)
 
- 
+为了增强Broker性能与吞吐量，Broker一般都是以集群的形式出现的。各集群节点中可能存放着相同Topic的不同Queue。Broker节点集群是一个主从集群，即集群中具有master和slave两种角色。Master负责处理读写操作请求，而slave负责读操作请求。一个Master可以包含多个Slave，但是一个slave只能属于一个Master。Master和Slave的对应关系是通过指定相同的BrokerName、不同的BrokerId来确定的。BrokerId为0表示Master，非0表示Slave。每个Master和Slave集群中的所有节点建立长连接，定时注册Topic信息到所有NameServer。 
+
+### 5.工作流程
+
+#### 具体流程
+
+- 启动NameServer，NameServer启动后开始监听端口，等待Broker、Producer、Consumer链接。
+- 启动Broker时，Broker会与所有的NameServer建立长连接，然后每30秒向NameServer发送心跳包
+- 收发消息前，可以先创建Topic，创建Topic时需要指定该Topic要存储在哪些Broker上，当然，在创建Topic时也会将Topic与Broker的关系写入到NameServer中。这一步是可选的，也可以在发送消息时自动创建Topic。
+- Producer发送消息，启动先跟NameServer集群中的其中一台建立长连接，并从NameServer中获取路由信息，即当前发送的Topic的Queue与Broker的地址(IP+Port)的映射关系。然后根据算法策略从队列中选择一个Queue，与队列所在的Broker建立长连接从而向Broker发送消息。在获取到路由信息后，Producer会首先将路由信息缓存到本地，在每30秒从NameServer更新一次路由信息。
+- Consumer和Producer类似，跟其中一台NameServer建立长连接，获取其所订阅的Topic的路由信息，然后根据算法策略从路由信息中获取到其所要的Queue,然后直接跟Broker建立长连接，开始消费其中的消息。Consumer在获取到路由信息后，同样也会每30秒从NameServer更新一次路由信息。不同于Producer，Consumer还会向Broker发送心跳，以确保Broker存活状
+
+#### Topic的创建模式
+
+Topic的创建方式有两种模式：
+
+**集群模式**：该模式下创建的Topic在该集群中，所有Broker中的Queue数量是相同的。
+**Broker模式**：该模式下创建的Topic在该集群中，每个Broker中的Queue数量可以不同。
+
+自动创建Topic时，默认采用的是Broker模式，会为每个Broker默认创建4个Queue
+
+#### 读/写队列
+
+从物理上来讲，读/写队列是同一个队列。所以，不存在读/写队列数据同步问题，读/写队列是逻辑上进行区分的概念。一般情况下，读写队列的数量是相同的。
+
+例如，创建Topic时设置的写队列数量为8，读队列为4，此时系统会创建8个Queue，分别是0-7。Producer会将消息写入到这8个队列中，但Consumer只会消费0123这4个队列中的消息，4567中的消息不会被消费到。
+
+在例如，创建Topic时设置的写队列数量为4，读队列为8，此时系统会创建8个Queue，分别是0-7。Producer会将消息写入到这0123这4个队列中，但Consumer只会消费8个队列中的消息，4567中不存在消息。此时假设ConsumerGroup中包含两个Consumer,Consumer1消费0123，而Consumer2消费4567.但是实际上，Consumer2没有消息可以消费。
+
+> 设计目的
+
+例如，原来创建的Topic中包含16个Queue，如何能够使其Queue缩容为8个，还不会丢失消息？可以动态修改写队列数据为8，读队列数量不变。此时新消息只能写入8个队列，而消费的是16个队列。当发现后8个Queue中的数据消费完毕后，就可以把读队列中的Queue数量设置为16.整个过程，没有丢失任何消息。
 

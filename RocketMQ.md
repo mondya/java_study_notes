@@ -157,3 +157,65 @@ Topic的创建方式有两种模式：
 
 例如，原来创建的Topic中包含16个Queue，如何能够使其Queue缩容为8个，还不会丢失消息？可以动态修改写队列数据为8，读队列数量不变。此时新消息只能写入8个队列，而消费的是16个队列。当发现后8个Queue中的数据消费完毕后，就可以把读队列中的Queue数量设置为16.整个过程，没有丢失任何消息。
 
+### 安装与启动
+
+### 安装
+
+官网安装教程https://rocketmq.apache.org/docs/quick-start/
+
+> 解压安装
+
+```bash
+  > unzip rocketmq-all-4.9.4-source-release.zip
+  > cd rocketmq-all-4.9.4-source-release/
+  > mvn -Prelease-all -DskipTests clean install -U
+  > cd distribution/target/rocketmq-4.9.4/rocketmq-4.9.4
+```
+
+#### 修改初始内存
+
+修改`runserver.sh`和`runbroker.sh`,更改`-Xms`相关参数
+
+#### 启动
+
+> Start Name Server
+
+```bash
+  > nohup sh bin/mqnamesrv &
+  > tail -f ~/logs/rocketmqlogs/namesrv.log
+  The Name Server boot success...
+```
+
+> Start Broker
+
+```bash
+  > nohup sh bin/mqbroker -n localhost:9876 &
+  > tail -f ~/logs/rocketmqlogs/broker.log 
+  The broker[%s, 172.30.30.233:10911] boot success...
+```
+
+> 发送接收消息
+
+--来自官网：Before sending/receiving messages, we need to tell clients the location of name servers. RocketMQ provides multiple ways to achieve this. For simplicity, we use environment variable `NAMESRV_ADDR`
+
+```bash
+ > export NAMESRV_ADDR=localhost:9876
+ > sh bin/tools.sh org.apache.rocketmq.example.quickstart.Producer
+ SendResult [sendStatus=SEND_OK, msgId= ...
+
+ > sh bin/tools.sh org.apache.rocketmq.example.quickstart.Consumer
+ ConsumeMessageThread_%d Receive New Messages: [MessageExt...
+```
+
+> 关闭 Servers
+
+```bash
+> sh bin/mqshutdown broker
+The mqbroker(36695) is running...
+Send shutdown request to mqbroker(36695) OK
+
+> sh bin/mqshutdown namesrv
+The mqnamesrv(36664) is running...
+Send shutdown request to mqnamesrv(36664) OK
+```
+

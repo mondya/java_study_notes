@@ -157,9 +157,9 @@ Topic的创建方式有两种模式：
 
 例如，原来创建的Topic中包含16个Queue，如何能够使其Queue缩容为8个，还不会丢失消息？可以动态修改写队列数据为8，读队列数量不变。此时新消息只能写入8个队列，而消费的是16个队列。当发现后8个Queue中的数据消费完毕后，就可以把读队列中的Queue数量设置为16.整个过程，没有丢失任何消息。
 
-### 安装与启动
+## 安装与启动
 
-### 安装
+### 1.安装
 
 官网安装教程https://rocketmq.apache.org/docs/quick-start/
 
@@ -219,3 +219,140 @@ The mqnamesrv(36664) is running...
 Send shutdown request to mqnamesrv(36664) OK
 ```
 
+## 集群搭建
+
+### 1.数据复制与刷盘策略
+
+#### 复制策略
+
+复制策略是Broker的Master与Slave之间的数据同步方式。分为同步复制与异步复制：
+
+- 同步复制：消息写入master后，master会等待slave同步数据成功后才向producer返回成功ACK
+- 异步复制：消息写入master后，master会立即向producer返回成功ACK，不需要等待slave同步数据成功
+
+> 异步复制会降低系统的写入延迟，RT变小，提高了系统的吞吐量
+
+#### 刷盘策略
+
+刷盘策略指的是broker中消息的`落盘`方式，即消息发送到broker内存后消息持久化到磁盘的方式。分为同步刷盘和异步刷盘：
+
+- 同步刷盘：当消息持久化到broker的磁盘后才算是消息写入成功
+- 异步刷盘：当消息写入到broker的内存后即表示消息写入成功，无需等待消息持久化到磁盘
+
+> 消息写入到Broker的内存，一般是写入到PageCache
+>
+> 对于异步刷盘策略，消息会写入到PageCache后会立即返回成功ACK。但是不会立即做落盘操作，而是当PageCache到达一定量时会自动进行落盘。
+
+### 2.Broker集群模式
+
+#### 单Master
+
+只有一个Master（本质上不能称为集群）。这种方式只能在测试时使用，生产环境下不能使用，因为存在单点问题。
+
+#### 多Master
+
+broker集群仅由多个master构成，不存在slave。同一Topic的各个Queue会分布在各个master节点上。
+
+- 优点：配置简单，单个Master宕机或重启维护对应用无影响，在磁盘配置为RAID10时，即使机器宕机不可恢复的情况下，由于RAID10磁盘非常可靠，消息与不会丢失（异步磁盘丢失少量消息，同步磁盘不丢失消息），性能最高
+- 缺点：单台机器宕机期间，这台机器上未被消费的消息在机器恢复之前不可订阅（不可消费），消息实时性会受到影响。
+
+#### 多Master多Slave模式-异步复制
+
+broker集群由多个master构成，每个master又配置了多个slave（在配置了RAID磁盘阵列的情况下，一个master一般配置一个slave即可）。master与slave的关系是主备关系，即master负责处理消息的读写请求，而slave仅负责消息的备份与master宕机后的角色切换。
+
+异步复制即前面所说的`复制策略`中的`异步复制策略`，即消息写入master成功后，master立即向producer返回成功ACK，无需等待slave同步数据成功。
+
+该模式的最大特点之一是，当master宕机后slave能够`自动切换为master`。不过由于slave从master的同步具有短暂的延迟（毫秒级），所以宕机后，这种异步复制方式可能会存在少量消息的丢失问题。
+
+#### 多Master多Slave模式-同步双写
+
+该模式是`多Master多Slave模式`的同步复制实现。同步双写，指的是消息写入master成功后， master会等待slave同步数据成功后才向producer返回成功ACK，即master与slave都要写入成功后才会返回ACK，即双写。
+
+该模式与异步复制模式相比，优点是消息的安全性更高，不存在消息丢失的情况。但单个消息的RT略高，从而导致性能降低（大约低10%）
+
+该模式存在一个大的问题：对于目前的版本，Master宕机后，Slave`不会自动切换`到Master。
+
+####  最佳实践
+
+一般会为master配置RAID10阵列，然后在为其配置一个slave。即利用了RAID10磁盘阵列的高效、安全性，又解决了可能会影响订阅的问题。
+
+> - 多Master+RAID阵列，其仅仅可以保证数据不丢失，即不影响消息写入，但其可能会影响到消息的订阅。执行效率要远高于`多Master多Slave集群`
+> - 多Mstere多Slave集群，其不仅可以保证数据不丢失，也不会影响消息写入。执行效率要低于`多Master+RAID阵列`
+
+## 实践
+
+### 配置文件位置
+
+`conf/2m-2s-async`
+
+### rocketmqOS1,修改os1配置文件
+
+#### 修改broker-a.properties
+
+```bash
+# 指定整个broker集群的名称
+brokerClusterName=DefaultCluster
+
+# 指定master-slave集群的名称。一个RockerMQ集群可以包含多个master-slave集群
+brokerName=broker-a
+
+# master的brokerId为0
+brokerId=0
+
+# 指定删除消息存储过期文件的时间为凌晨4点
+deletewhen=04
+
+# 指定未发生更新的消息存储文件的保留时长为48小时，48小时后过期，将会被删除
+fileReserverTime=48
+
+# 指定当前broker为异步复制master
+brokerRole=ASYNC_MASTER
+
+# 指定刷盘策略为异步刷盘
+flushDiskType=ASYNC_FLUSH
+
+# 指定NamerServer的地址（这里需要手动添加）
+namesrvAddr=192.168.59.164:9876;192.168.59.165:9876
+```
+
+#### 修改broker-b-s.properties
+
+将该配置文件内容修改为如下：
+
+```bash
+brokerClusterName=DefaultCluster
+# 指定这是另外一个master-slave集群
+brokerName=broker-b
+
+# slave的brokerId为非0
+brokerId=1
+deleteWhen=04
+fileReservedTime=48
+# 指定当前broker为slave
+brokerRole=SLAVE
+flusDiskType=ASYNC_FLUSH
+
+# 手动添加
+namesrvAddr=192.168.59.164:9876;192.168.59.165:9876
+
+# 指定broker对外提供服务的端口，即Broker与producer和consumer通信的接口，默认10911.由于当前主机同时充当master1与slave2,而前面的master1使用的是默认端口。这里需要将这两个端口加以区分，区分出master1与slave2
+listenPort=11911
+
+# 指定消息存储相关的路径。默认路径为~/store目录。由于当前主机同时充当master1和slave2，master1使用的是默认路径，这里需要指定一个不同的路径
+storePathRootDir=~/store-s
+storePathCommitLog=~/store-s/commitLog
+storePathConsumerQueue=~/store-s/consumequeue
+storePathIndex=~/store-s/index
+storeCheckpoint=~/store-s/checkpoint
+abortFile=~/store-s/abort
+```
+
+### rocketmqOS2,修改os2配置文件
+
+### 修改broker-b.properties
+
+内容同上
+
+#### 修改broker-a-s.properties
+
+内容同上

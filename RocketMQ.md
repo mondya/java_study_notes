@@ -349,10 +349,119 @@ abortFile=~/store-s/abort
 
 ### rocketmqOS2,修改os2配置文件
 
-### 修改broker-b.properties
+#### 修改broker-b.properties
 
 内容同上
 
 #### 修改broker-a-s.properties
 
 内容同上
+
+### 启动服务器
+
+#### 启动NameServer集群
+
+分别启动rocketmqOS1和rocketmqOS2两个主机中的NameServer。启动命令相同
+
+```bash
+nohup sh bin/mqnamesrv &
+```
+
+#### 启动两个Master
+
+分别启动rocketmqOS1和rocketmqOS2两个主机中的broker master。它们指定要加载的配置文件是`不同的`。
+
+```bash
+nohup sh bin/mqbroker -c conf/2m-2s-async/broker-a.properties &
+```
+
+```bash
+nohup sh bin/mqbroker -c conf/2m-2s-async/broker-b.properties &
+```
+
+#### 启动两个Slave
+
+```bash
+nohup sh bin/mqbroker -c conf/2m-2s-async/broker-a-s.properties &
+```
+
+```bash
+nohup sh bin/mqbroker -c conf/2m-2s-async/broker-b-s.properties &
+```
+
+## RocketMQ工作原理
+
+### 消息的生产
+
+#### 消息的生产过程
+
+Producer可以将消息写入到某个Broker中的某个Queue中，其经历了如下过程：
+
+- Producer发送消息之前，会先向NameServer发出`获取消息Topic的路由信息`的请求
+- NameServer返回该Topic的`路由表`及`Broker列表`
+- Producer根据代码中指定的Queue选择策略，从Queue列表中选出一个队列，用于后续存储消息
+- Producer对消息做一些特殊处理，例如，消息本体超过4M，则会对其进行压缩
+- Producer向选择出的Queue所在的Broker发出RPC请求，将消息发送到选择的Queue
+
+NameServer维护的路由表，实际上是一个Map,key为Topic名称，value是一个QueueData实例集合，而一个QueueData则包含一个Broker实例的所有此Topic的Queue信息，即一个Broker对应一个QueueData，QueueData包含brokerName。
+
+```json
+{
+
+    "TopicTest":[
+
+        {
+
+            "brokerName":"broker-a",
+
+            "perm":6,
+
+            "readQueueNums":4,
+
+            "topicSynFlag":0,
+
+            "writeQueueNums":4
+
+        }
+
+    ]}
+```
+
+> broker列表
+
+其实际上也是一个Map。key为brokerName,value为BrokerData。一个BrokerData对应一组brokerName相同的Master-Slave小集群。BrokerData中包含brokerName及一个map。该map的key为brokerId,value为该broker对应的地址。brokerId为0表示该broker为Master，非0表示Slave.
+
+```json
+{
+
+    "broker-a":{
+
+        "brokerAddrs":{
+
+            "0":"172.16.62.75:10911  
+
+        },
+
+        "brokerName":"broker-a",
+
+        "cluster":"DefaultCluster"
+
+    }}
+
+```
+
+#### Queue选择算法
+
+对于无序消息，其Queue选择算法，也称为消息投递算法：
+
+> 轮询算法
+
+默认选择算法。该算法保证了每个Queue中可以均匀的获取消息。
+
+问题：由于某些原因，在某些Broker上的Queue可能投递延迟严重。从而导致Producer的缓存队列中出现大量的消息积压，影响消息的投递性能.
+
+> 最小投递算法
+
+该算法会统计每次消息投递的时间延迟，然后根据统计的结果将消息投递到时间最小的Queue。如果延迟相同，则采用轮询算法投递。
+
+问题：消息在Queue上的分配不均匀。投递延迟小的Queue其可能存在大量的消息。而对该Queue的消费者压力会增大，降低消费的消费能力。

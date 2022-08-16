@@ -465,3 +465,31 @@ NameServer维护的路由表，实际上是一个Map,key为Topic名称，value�
 该算法会统计每次消息投递的时间延迟，然后根据统计的结果将消息投递到时间最小的Queue。如果延迟相同，则采用轮询算法投递。
 
 问题：消息在Queue上的分配不均匀。投递延迟小的Queue其可能存在大量的消息。而对该Queue的消费者压力会增大，降低消费的消费能力。
+
+### 消息的存储
+
+#### 目录与文件
+
+![image-20220815211347214](.\images\image-20220815211347214.png)
+
+- abort:该文件在Broker启动后自动创建，正常关闭Broker，该文件会自动消失。若在没有启动Broker的情况下，发现这个文件是存在的，说明有Broker没有正常关闭。
+
+- checkpoint:其中存储着commitlog、consumequeue、index文件的最后刷盘时间
+
+- commitlog:其中存放commitlog文件
+
+- config:存放Broker运行期间的一些配置数据
+
+- consumequeue:存放consumequeue文件、队列就存放在这个目录中
+
+- index:其中存放着消息索引文件indexFile
+
+- lock:运行期间使用到的全局资源锁
+
+#### 消息单元
+
+commitlog目录中存放着mappedFile文件，当前broker中的所有消息都是被刷盘到了这个commitLog目录中的mappedFile文件。mappedFile文件的大小为1g,文件名由20位十进制数构成，表示当前文件的第一条消息的起始位移偏移量。一个Broker中仅包含一个commitlog目录，所有的mappedFile文件都是存放在该目录中。即无论当前Broker中存放着多少Topic的消息，这些消息都是被顺序写入到了mappedFile文件中。也就是说，这些消息在Broker中存放时并没有被按照Topic进行分类存放。我妈喊我
+
+![image-20220815212826370](.\images\image-20220815212826370.png)
+
+mappedFile文件内容由一个个的消息单元构成。每个消息单元中包含消息总长度MsgLen、消息的物理位置PhysicalOffset、消息体body，消息体长度bodyLength，消息主题Topic，Topic长度TopicLength，消息生产者BornHost，消息发送时间戳BornTimeStamp，消息所在的队列QueueId，消息在Queue中存储的偏移量QueueOffset等近20余项消息相关属性。

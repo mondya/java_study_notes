@@ -386,3 +386,6 @@ T：入参类型；出参类型是Boolean
 定义函数示例：Predicate<Integer> predicate = p -> p % 2 == 0;  // 判断是否、是不是偶数
 
 调用函数示例：predicate.test(100);  // 运行结果true
+
+# Lambda表达式
+

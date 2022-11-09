@@ -511,3 +511,25 @@ consumequeue文件名也是由20位数字构成，表示当前文件的第一个
 一条消息进入到Broker后经历了以下几个过程才最终被持久化。
 
 - Broker根据queueId,获取到该消息对应索引目录在consumequeue目录中写入偏移量，即QueueOffset
+- 将queueId，queueOffset等数据，与消息一起封装为消息单元
+- 将消息单元写入到commitLog
+- 形成消息索引条目
+- 将消息索引条目分发到相应的consumerqueue
+
+#### 消息拉取
+
+当consumer来拉取消息时会经历以下几个步骤：
+
+- Consumer拉取到其要消费的消息所在Queue的==消费偏移量offset==，计算出其要消费的==消息offset==
+
+> 消费offset即消费进度，consumer对某个queue的消费offset，即消费到了该Queue的第几条消息
+
+- Consumer向Broker发送拉取请求，其中会包含其要拉取消费的queue，消息offset及消息Tag
+- Broker计算在该consumer的queue中的queueoffset
+- 从该queueOffset处开始先后查找第一个指定Tag的索引条目
+- 解析该索引条目的前8个字节，即可定位到该消息在commitLog文件中的commit offset
+- 从对应commitLog offset中读取消息单元，并发送给Consumer
+
+### indexFile
+
+除了通

@@ -281,7 +281,7 @@ info:
 ```java
 @EnableEurekaClient //向eureka注册扫描
 ```
-![](/images/eureka.png)
+![](./images/eureka.png)
 # Ribbon负载均衡
 SpringCloudRibbon是基于NetFixRibbon实现的一套==客户端负载均衡的工具==
 不用导入依赖,`spring-cloud-starter-netflix-hystrix`包含ribbon相关依赖

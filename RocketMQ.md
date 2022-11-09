@@ -488,8 +488,26 @@ NameServer维护的路由表，实际上是一个Map,key为Topic名称，value�
 
 #### 消息单元
 
-commitlog目录中存放着mappedFile文件，当前broker中的所有消息都是被刷盘到了这个commitLog目录中的mappedFile文件。mappedFile文件的大小为1g,文件名由20位十进制数构成，表示当前文件的第一条消息的起始位移偏移量。一个Broker中仅包含一个commitlog目录，所有的mappedFile文件都是存放在该目录中。即无论当前Broker中存放着多少Topic的消息，这些消息都是被顺序写入到了mappedFile文件中。也就是说，这些消息在Broker中存放时并没有被按照Topic进行分类存放。我妈喊我
+commitlog目录中存放着mappedFile文件，当前broker中的所有消息都是被刷盘到了这个commitLog目录中的mappedFile文件。mappedFile文件的大小为1g,文件名由20位十进制数构成，表示当前文件的第一条消息的起始位移偏移量。一个Broker中仅包含一个commitlog目录，所有的mappedFile文件都是存放在该目录中。即无论当前Broker中存放着多少Topic的消息，这些消息都是被顺序写入到了mappedFile文件中。也就是说，这些消息在Broker中存放时并没有被按照Topic进行分类存放。
 
 ![image-20220815212826370](.\images\image-20220815212826370.png)
 
 mappedFile文件内容由一个个的消息单元构成。每个消息单元中包含消息总长度MsgLen、消息的物理位置PhysicalOffset、消息体body，消息体长度bodyLength，消息主题Topic，Topic长度TopicLength，消息生产者BornHost，消息发送时间戳BornTimeStamp，消息所在的队列QueueId，消息在Queue中存储的偏移量QueueOffset等近20余项消息相关属性。
+
+#### consumequeue
+
+ 为了提高效率，会为每个Topic在`~/store/consumequeue`中创建一个目录，目录名为Topic名称。在该Topic目录下，会再为每个Topic的Queue建立一个目录，目录名为queueId。每个目录中存放着若干consumequeue文件,consumequeue文件是commitlog的索引文件，可以根据consumequeue定位到具体的消息。
+
+consumequeue文件名也是由20位数字构成，表示当前文件的第一个索引条目的起始位移偏移量。与mappedFile文件名不同的是，其后续文件名是固定的，因为consumequeue文件大小是固定不变的。
+
+#### 索引条目
+
+ ![image-20220827231651485](./images/image-20220827231651485.png)
+
+每个consumeque文件可以包含30w个索引条目，每个索引条目包含了三个消息重要属性：消息在mappedFile文件中的偏移量CommitLog Offset、消息长度、消息tag的hashcode值。这三个属性占用20个字节，所以每个文件的大小是固定的30w*20字节。
+
+#### 消息写入
+
+一条消息进入到Broker后经历了以下几个过程才最终被持久化。
+
+- Broker根据queueId,获取到该消息对应索引目录在consumequeue目录中写入偏移量，即QueueOffset

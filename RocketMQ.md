@@ -532,4 +532,42 @@ consumequeue文件名也是由20位数字构成，表示当前文件的第一个
 
 ### indexFile
 
-除了通
+除了通过通常的指定Topic进行消息消费外，RocketMQ还提供了根据key进行消息查询的功能。该查询是通过store目录中的index目录中的index子目录中的indexFile进行索引实现的快速查询。
+
+#### 索引条目结构
+
+每个Broker中会包含一组indexFile，每个indexFile都是以一个时间戳命名的（indexFile被创建时的时间戳）。每个indexFile文件由三部分组成：indexHeader，slot槽位，indexes索引数据。每个indexFile文件中包含500w个slot槽。而每个slot槽又可能会挂载很多的index索引单元。
+
+![image-20221110215727779](.\images\indexHeader结构图.png)
+
+- beginTimestamp：该indexFile中第一条消息的存储时间
+- endTimestamp：该indexFile中最后一条消息的存储时间
+- beginPhyoffset：该indexFile中第一条消息在commitlog中的偏移量commitlog offset
+- endPhyoffset：该indexFile中最后一条消息在commitlog中的偏移量commitlog offset
+- hashSlotCount：已经填充有index的slot数量
+- indexCount：该indexFile中包含的索引个数
+
+####  查询流程
+
+// todo 
+
+### 消息的消费
+
+消费者从Broker中获取消息的方式有两种：Pull拉取方式和push推动方式。消费者组对于消息消费的模式又分为两种：集群消费Clustering和广播消费Broadcasting
+
+#### 推拉消费类型
+
+##### 拉取式消费
+
+Consumer主动从Broker中拉取消息，主动权由Consumer控制。一旦获取了批量消息，就会启动消费过程。但是，该方式的实时性较弱，即Broker中有了新的消息时消费者并不能及时发现并消费。
+
+##### 推送式消费
+
+该模式下Broker收到数据后会主动推送给Consumer。该消费模式一般实时性较高
+
+该消费类型是典型的发布-订阅模式，即Consumer向其关联的Queue注册了监听器，一旦发现有新的消息过来就会触发回调的执行，回调方法是Consumer去Queue中拉取消息。而这些都是基于Consumer与Broker的长连接，长连接的维护需要消耗系统资源。
+
+##### 对比
+
+- pull：需要应用去实现对关联Queue的遍历，实时性差；但便于应用控制消息的拉取
+- push：封装了对关联Queue的遍历，实时性强，但会占用较多的系统资源

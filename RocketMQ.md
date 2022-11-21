@@ -555,7 +555,7 @@ consumequeue文件名也是由20位数字构成，表示当前文件的第一个
 
 消费者从Broker中获取消息的方式有两种：Pull拉取方式和push推动方式。消费者组对于消息消费的模式又分为两种：集群消费Clustering和广播消费Broadcasting
 
-#### 推拉消费类型
+#### 获取消费类型
 
 ##### 拉取式消费
 
@@ -571,3 +571,20 @@ Consumer主动从Broker中拉取消息，主动权由Consumer控制。一旦获�
 
 - pull：需要应用去实现对关联Queue的遍历，实时性差；但便于应用控制消息的拉取
 - push：封装了对关联Queue的遍历，实时性强，但会占用较多的系统资源
+
+### 消费模式
+
+#### 广播消费
+
+广播消费模式下，相同Consumer Group的每个Consumer实例都接收同一个Topic的全量消息。即每条消息都会发送到Consumer Group中的每个Consumer。
+
+#### 集群消费
+
+集群消费模式下，相同Consumer Group的每个Consumer实例平均分摊同一个Topic的消息。即每条消息只会发送到Comsumer Group中的某个Consumer。
+
+#### 消费进度保存
+
+- 广播模式：消费进度保存在consumer端。因为广播模式下consumer group中每个consumer都会消费所有消息，但他们的消费进度是不同的，所以consumer各自保存各自的消费进度。
+- 集群模式：消费进度保存在broker中。consumer group中的所有consumer共同消费同一个Topic中的消息，同一条消息只会被消费一次。消费进度会参与到消费的负载均衡中，所以消费进度是需要共享的。
+
+### Rebalance机制

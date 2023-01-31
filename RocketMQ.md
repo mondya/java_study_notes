@@ -628,3 +628,138 @@ Rebalance在提升消费能力的同时，也带来一些问题：
 > ConsumerManager：key是Consumer Group Id，value是ConsumerGroupInfo。ConsumerGroupInfo中维护着该Group中所有的Consumer实例数据
 >
 > ConsumerOffsetManager：key为`Topic与订阅该Topic的Group的组合`，value是一个内层map。内层map的key为QueueId，内层Map的value为该Queue的消费进度Offset。
+
+### Queue分配算法
+
+一个Topic中的Queue只能由Consumer Group中的一个Consumer消费，而一个Consumer可以同时消费多个Queue中的消息，Queue要分配给哪个Consumer进行消费，也是有算法策略的。常见的有四种策略，这些策略是通过在创建Consumer时的构造器传进去的。
+
+#### 平均分配策略
+
+![image-20230131203906571](.\images\image-20230131203906571.png)
+
+该算法是要根据avg = QueueCount / ConsumerCount的计算结果进行分配的。如果能够整除，则按顺序将avg个Queue逐个分配给Consumer；如果不能整除，则将多余的Queue按照Consumer顺序逐个分配
+
+#### 环形平均策略
+
+![image-20230131204324318](.\images\image-20230131204324318.png)
+
+环形平均算法是指，根据消费者的顺序，依次在由Queue队列组成的环形图中逐个分配。
+
+> 该算法不用先计算每个Consumer需要分配几个Queue，直接分配即可
+
+#### 一致性hash策略
+
+![image-20230131204659656](\images\image-20230131204659656.png)
+
+该算法会将consumer的hash值作为Node节点存放到hash环上，然后将queue的hash值也放到hash环上，通过顺时针方向，距离queue最近的consumer就是该queue要分配的consumer。
+
+#### 同机房策略
+
+![image-20230131205231452](\images\image-20230131205231452.png)
+
+该算法会根据queue部署机房位置和consumer的位置，过滤出当前consumer相同机房的queue。然后按照平均分配策略或环形平均策略对同机房queue进行分配。如果没有同机房queue，则按照平均分配策略或环形平均策略对所有的queue进行分配。
+
+#### 算法对比
+
+两种平均分配策略的分配效率较高，一致性hash策略较低，因为一致性hash算法比较复杂，另外一致性hash策略分配的结果也很大可能上存在分配不均的情况
+
+一致性hash算法存在的意义：其可以有效减少由于消费者组扩容或缩容所带来的大量Rebalance。
+
+![image-20230131211129366](\images\image-20230131211129366.png)
+
+![image-20230131211213438](\images\image-20230131211213438.png)
+
+一致性hash算法的应用场景：
+
+Consumer数量变化较频繁的场景。
+
+### 至少一次原则
+
+RocketMQ有一个原则：每条消息必须要被成功消费一次。即Consumer在消费完消息后会向其消费进度记录器提交其消费消息的offset，offset被成功记录到记录器中，那么这条消费就被成功消费了
+
+### 订阅关系的一致性
+
+订阅关系的一致性指的是同一个消费者组（GroupId相同）下所有的consumer实例所订阅的Topic与Tag及对消息的处理逻辑必须完全一致。否则，消息消费的逻辑就会混乱，甚至导致消息丢失。
+
+订阅不同topic，订阅相同topic但是tag不同,订阅不同数量的topic
+
+### Offset管理
+
+消费进度Offset是用来记录每个queue的不同消费组的消费进度的。根据消费进度记录器的不同，可以分为两种模式：本地模式和远程模式。
+
+#### offset本地管理模式
+
+当消费模式为广播模式时，offset使用本地模式存储。因为每条消息会被所有的消费者消费，每个消费者管理自己的消费进度，每个消费者之间不存在消费进度的交集。
+
+consumer在广播消费模式下offset相关数据以json的形式持久化到consumer本地磁盘文件中，模式文件路径为当前用户主目录下的`.rocketmq_offsets/${clientId}/${group}/offsets.json`。其中`${clientId}`为当前消费者id，默认为ip@DEFAULT；group为消费者组名称。
+
+#### offset远程管理模式
+
+当消费模式为集群模式时，offset使用远程模式管理。因为所有consumer实例对消息采用的是均衡消费，所有consumer共享queue的消费进度。
+
+consumer在集群消费模式下offset相关数据以json的形式持久化到broker磁盘文件中，文件路径为当前用户主目录下的stroe/config/consumerOffset.json。
+
+broker启动时会加载这个文件，并写入一个双层map。外层map的key为topic@group，value为内层map。内层map的key为queueId，value为offset。当发生Rebalance时，新的consumer会从该map中获取到相应的数据来进行消费。
+
+#### offset用途
+
+当消费完一批消息后，consumer会提交其消费进度offset给Broker，Broker在收到消费进度后会将其更新到双层map(ConsumerOffsetManager)和consumerOfffset.json文件中，然后向该Consumer进行ACK，而ACK内容中包含三项数据：当前消费队列的最小offset(minOffset)，最大offset(maxOffset)，及下次消费的起始offset(nextBeginOffset)
+
+#### 重试队列
+
+当rocketmq对消息的消费出现异常时，会将发生异常的offset提交到Broker中的重试队列。系统在发生消息消费异常时会为当前的topic创建一个重试队列，该队列以`%RETRY%`开头，到达重试时间后进行消费重试。
+
+#### offset提交
+
+集群消费模式下，consumer消费完消息后会向broker提交消费进度offset，其提价方式为两种：
+
+- 同步提交：消费者在消费完一批消息后会向broker提交这些消息的offset，然后等待broker的成功相应。如果在等待超时之前受到了成功响应，则继续读取下一批消息进行消费。若没有受到响应，则会重新提交，知道获取到响应。而在这个过程中，消费者是阻塞的，其严重影响了消费者的吞吐量。
+- 异步提交：消费者在消费完一批消息后向broker提交offset，但无需等待Broker的成功响应，可以继续读取并消费下一批消息。这种方式增加了消费者的吞吐量。但需要注意，broker在收到提交的offset后，还是会向消费者进行响应的。
+
+### 消费幂等
+
+当出现消费者对某条消息重复消费的情况时，重复消费的结果与消费一次的结果是相同的，并且多次消费并未对业务系统产生任何负面影响，那么这个消费过程就是消费幂等的。
+
+> 幂等：若某操作执行多次与执行一次对系统产生的影响是相同的，则该操作就是幂等的
+
+#### 消费重复场景
+
+##### 发送时消息重复
+
+当一条消息已被成功发送到Broker并完成持久化，此时出现了网络闪断，从而导致broker对Producer应答失败。如果此时producer
+
+意识到消息发送失败并尝试再次发送消息，此时broker中就可能会出现两条内容相同并且messageId也相同的消息，那么consumer也会消费两次。
+
+##### 消费时消息重复
+
+消息已投递到consumer并完成业务处理，当consumer给broker反馈应答时网络闪断，broker没有接收到消费成功响应。为了保证消息至少被消费一次原则，broker将在网络恢复后再次尝试投递之前已被处理过的消息。此时消费者会收到之前处理过的内容相同，messageId也相同的消息。
+
+##### Rebalance时消息重复
+
+当触发Rebalance，此时consumer可能会收到曾经被消费过的消息
+
+#### 解决方案
+
+幂等解决方案的设计中涉及到两项要素：幂等令牌，与唯一性处理。
+
+- 幂等令牌：生产者和消费者两者中的既定协议，通常指具备唯一业务标识的字符串。例如，订单号、流水号。一般由producer随着消息一同发送。
+- 唯一性处理：服务端通过采用一定的算法策略，保证同一个业务逻辑不会被重复执行成功多次。例如，对同一笔订单的多次支付操作，只会成功一次。
+
+对于常见的系统，幂等性操作的通用解决方案是：
+
+1.首先通过缓存去重。在缓存中如果已经存在了某幂等令牌，则说明本次操作是重复性操作；若缓存没有命中，则进行下一步。
+
+2.在唯一性处理之前，先在数据库中查询幂等令牌作为索引的数据是否存在。若存在，则说明本次操作为重复性操作；若不存在，则进入下一步。
+
+3.在同一事务中完成三项操作：唯一性处理后，将幂等令牌写入到缓存，并将幂等令牌作为唯一索引的数据写入到DB中。
+
+#### 解决方案举例
+
+以支付场景为例：
+
+- 当支付请求到达后，首先在redis缓存中获取key为支付流水号的缓存value。若value不为空，则说明本次支付是重复操作，业务系统直接返回调用侧重复支付标志；若value为空，则进行下一步操作
+- 到DBMS中根据支付流水号查询是否存在实例。若存在，则说明本次支付是重复操作，业务系统直接返回调用侧重复支付标识；若不存在，则说明本次操作是首次操作，进入下一步完成唯一性处理
+- 在分布式事务中完成三项操作
+  - 完成支付任务
+  - 将当前支付流水号作为key，任意字符串作为value，将数据写入redis缓存
+  - 将当前支付流水号作为主键，与其他相关数据写入DBMS

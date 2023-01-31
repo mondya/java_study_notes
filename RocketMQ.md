@@ -108,7 +108,7 @@ Broker充当着消息中转的角色，负责存储消息、转发消息。Broke
 
 
 
-![image-20220721215923086](D:\study_code\java_study_notes\images\image-20220721215923086.png)
+![image-20220721215923086](images\image-20220721215923086.png)
 
 ==Remote Module==：整个Broker的实体，负责处理来自clients端的请求。而这个Broker实体则由以下模块构成。
 

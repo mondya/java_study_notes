@@ -139,7 +139,7 @@ doc/*.txt     #会忽略 doc/notes.txt  但不包括 doc/server/arch.txt
 > 使用码云创建一个自己的仓库
 
 ## IDEA集成Git
-    
+
 - 新建项目
 - 绑定git
 
@@ -212,10 +212,24 @@ git push [远程主机名] [本地分支名]
 如果想比较，本地分支和线上分支的差别，可以先`git fetch`，这样就可以用`git diff origin/xxx`,进行比较了。
 如果一切都正常了，可以合并:`git merge`
 ## 回退操作
-`git reset head`在master分支上回退，如果在一个新的分支，就会出现unstaged changes after reset
-解决办法：
-1.git add .
-git reset --hard
-2.git stash
-git stash drop
-  
+回退某次commit，先commit log 查看commit ，然后git reset --hard [commit记录]
+
+## 本地仓库关联远程仓库
+
+- 本地仓库与远程仓库关联：`git remote add origin XXX.git`
+- 强制推送到远程仓库，且覆盖远程代码库：`git push -f --set-upstream origin master:master`
+
+## 本地分支覆盖远程分支
+
+`git push origin master --force`
+
+或者
+
+`git push -f --set-upstream origin master:master`（常用）
+
+## 本地分支关联远程分支
+
+- `git branch --set-upstream-to = origin/master master`
+- 弃用`git branch --set-upstream master origin/master`
+- `git branch -u origin/master master`
+

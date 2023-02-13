@@ -564,3 +564,38 @@ configuration.all {
 ```
 
 ## Gradle插件
+
+### 分类和使用
+
+#### 脚本插件
+
+脚本插件的本质就是一个脚本文件，使用脚本插件时通过apply from: 将脚本加载进来，脚本文件可以是本地也可以是网络
+
+```groovy
+// version.gradle文件
+ext {
+    company = 'xhh'
+    cfgs = [
+        compileSdkVersion: JavaVersion VERSION_1_8
+    ]
+    spring = [
+        version: '5.0.0'
+    ]
+}
+```
+
+在构建文件中使用这个脚本文件：
+
+```groovy
+// build.gradle文件
+apply from: 'version.gradle'
+
+task.taskVersion {
+    doLast {
+        println "名称为${company},JDK版本${cfgs.compileSdkVersion},版本号为${spring.version}"
+    }
+}
+```
+
+意义：脚本文件模块化的基础，可按照功能把脚本文件进行拆分成公用，职责分明的文件，然后在主脚本中引入
+

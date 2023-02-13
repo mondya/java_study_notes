@@ -227,6 +227,36 @@ git push [远程主机名] [本地分支名]
 
 `git push -f --set-upstream origin master:master`（常用）
 
+## 远程分支覆盖本地分支
+
+> 没有执行git add .
+
+`git checkout -test.md`：放弃某个文件的还未add的内容
+
+`git checkout .`：放弃所有未加入到缓存区的修改（不会删除新建的文件，新建的文件对于git来说，还未加入管理，可以直接删除）
+
+> 已经执行git add .
+
+`git reset head test.md`：回到第一种状态
+
+`git reset head .`:所有文件回到第一种状态
+
+> 已经commit
+
+`git reset --hard commitid`:回退到某个commit版本
+
+`git log`：查看commit记录
+
+> 放弃本地修改，强制和远程同步
+
+```git
+git fetch --all
+git reset --hard origin/master
+git pull
+```
+
+
+
 ## 本地分支关联远程分支
 
 - `git branch --set-upstream-to = origin/master master`

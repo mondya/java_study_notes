@@ -599,3 +599,167 @@ task.taskVersion {
 
 意义：脚本文件模块化的基础，可按照功能把脚本文件进行拆分成公用，职责分明的文件，然后在主脚本中引入
 
+#### 对象插件之内部插件【核心插件】
+
+二进制插件【对象插件】就是实现了org.gradle.api.Plugin接口的插件，每个java gradle 插件都有一个plugin id
+
+![image-20230214210910742](.\images\image-20230214210910742.png)
+
+```groovy
+/*
+* 使用apply: map具名参数
+key = plugin  value = 插件id、插件的全类名、插件的简类名（如果被导入）
+*/
+apply plugin : 'java'
+apply plugin : org.gradle.api.plugins.JavaPlugin
+apply plugin : JavaPlugin
+
+
+// 闭包方式
+apply {
+    plugin 'java'
+}
+```
+
+#### 对象插件之第三方插件
+
+如果使用第三方发布的二进制插件，一般需要配置对应的仓库和类路径
+
+```groovy
+buildscript{
+    ext {
+        springBootV	ersion = '2.3.3.RELEASE'
+    }
+    
+    repositories {
+        mavenLocal()
+        maven {url 'http://maven.aliyun.com/nexus/content/groups/public'}
+        jcenter()
+    }
+    
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+    }
+}
+
+// 再应用插件
+apply plugin: 'org.springframework.boot'
+```
+
+但是如果第三方插件已经被托管再https://plugins.gradle.org/网站上，就可以不用再buildscript里配置classpath依赖了，直接使用plugins DSL方式引入
+
+```groovy
+plugins {
+    id 'org.springframework.boot' version '2.4.1'
+}
+```
+
+注意：
+
+- 如果使用老式插件方式buildscript{}要放在build.grale的最前面，而plugins {} 没有该限制
+- 托管再gradle插件官网的第三方插件有两种使用方式，一是传统的buildscript方式，一种是plugins DSL方式
+
+#### 自定义插件
+
+局限性
+
+### buildSrc目录
+
+buildSrc是Gradle默认的插件目录，编译Gradle的时候会自动识别这个目录，将其中的代码编译成插件
+
+在根目录新建Module ，名字为buildSrc，从根目录移除Included，只保留build.gradle和src/main目录
+
+```groovy
+apply plugin: 'groovy'
+apply plugin : 'maven-publish'
+
+dependencies {
+    implementaion gradleApi() // 必须
+    implementation localGroovy() //必须
+}
+
+repositories {
+    google()
+    jcenter()
+    mavenCentral() //必须
+}
+
+sourceSets {
+    main {
+        groovy {
+            srcDir 'src/main/groovy'
+        }
+    }
+}
+```
+
+编写Test类实现Plugin<Project>接口
+
+```groovy
+class Test implements Plugin<Project> {
+    @Override
+    void apply(Project project) {
+        project.task("xhh") {
+            doLast {
+                println '自定义插件'
+            }
+        }
+    }
+}
+```
+
+然后在main目录下创建resources目录，在resources目录下创建META-INF目录，在META-INF目录下创建gradle-plugins目录，在garde-plugins目录下创建properties文件，比如xhh.properties,其xhh就是定义的包名路径
+
+最后在properties文件中知名我们需要实现的全类名 implementation-class = com.xhh.Test
+
+项目中引入 apply plugin : 'com.xhh'，然后执行插件
+
+#### 发布到maven仓库
+
+复制一个buildSrc，作为项目，引入maven-publish插件
+
+```groovy
+publishing {
+    publications {
+        myLibrary(MavenPublication) {
+            groupId = 'com.xhh'
+            artifactId = 'library'
+            verion = '1.1.1'
+            from components.java // jar包
+            from components.web // war包
+        }
+    }
+    
+    repositories {
+        maven {url = '$rootDir/lib/release'}
+        // 远程地址
+            maven {
+        credentials {
+            username '5ee057b297528f50b957a24b'
+            password '5EDW9X0yEh(z'
+        }
+        url 'https://packages.aliyun.com/maven/repository/2031436-release-DZ8BKk/'
+    }
+    }
+}
+```
+
+
+
+### 插件的关注点
+
+#### 引用
+
+apply plugin : 'plugin name'
+
+#### 功能
+
+引入插件后，插件会自动为我们的工程添加一些额外的任务来完成相应的功能
+
+#### 工程目录结构
+
+一些插件对工程目录结构有约定，所以我们需要遵循约定来创建工程，这也是Gradle的约定优于配置原则
+
+#### 依赖管理
+
+#### 常用属性

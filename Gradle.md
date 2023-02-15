@@ -763,3 +763,8 @@ apply plugin : 'plugin name'
 #### 依赖管理
 
 #### 常用属性
+
+## build.grade文件
+
+![image-20230215230557070](.\images\image-20230215230557070.png)
+

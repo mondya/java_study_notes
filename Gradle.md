@@ -235,7 +235,7 @@ C.dependsOn = ['A', 'B']
 
 语法：`gradle [taskName...] [--option-name...]`
 
-> 常见任务
+#### 常见任务
 
 `gradle build`：构建项目编译、测试、打包等操作
 
@@ -247,7 +247,7 @@ C.dependsOn = ['A', 'B']
 
 `gradle wrapper`：生成wrapper文件夹
 
-> 项目报告相关任务
+#### 项目报告相关任务
 
 `gradle projects`：列出所选项目以及子项目列表，以层次结构的形式显示
 
@@ -263,7 +263,7 @@ C.dependsOn = ['A', 'B']
 
 `gradle properties`：列出所选项目的属性列表
 
-> 调试相关
+#### 调试相关
 
 `-h, --help`：查看帮助信息
 
@@ -279,7 +279,7 @@ C.dependsOn = ['A', 'B']
 
 `-Dorg.gradle.debug.port = xxx`：指定启用调试时要监听的端口号。默认值为5005
 
-> 性能选项：gradle.peoperties文件
+#### 性能选项：gradle.peoperties文件
 
 ```properties
 # gradle.propeties里面定义的属性是全局的，可以在各个模块的build.gradle里面直接引用
@@ -295,7 +295,7 @@ org.gradle.parallel = true
 org.gradle.caching = true
 ```
 
-> 日志选项
+#### 日志选项
 
 `-Dorg.gradle.logging.level = (quiet,warn,lifecycle,info,debug)`
 
@@ -307,7 +307,7 @@ org.gradle.caching = true
 
 `-d, -debug`：debug
 
-> 其他
+#### 其他
 
 `gradle build --return-tasks`：强制执行任务，忽略up-to-date
 
@@ -767,4 +767,91 @@ apply plugin : 'plugin name'
 ## build.grade文件
 
 ![image-20230215230557070](.\images\image-20230215230557070.png)
+
+### 常见属性代码
+
+```groovy
+// 编译JAVA文件采用UTF-8，注意是指源码编码的字符集【源文件】
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+// 编译JAVA文件采用UTF-8，注意是指文档编码的字符集【源文件】
+tasks.withType(Javadoc) {
+    options.encoding = 'UTF-8'
+}
+```
+
+### project
+
+根工程对子工程添加依赖
+
+不支持DSL语句
+
+```groovy
+project('subproject01') {
+    apply plugin: 'java'
+    
+    // DSL语句报错
+    plugins {
+        id : 'java'
+    }
+    dependencies {
+        implementation 'org.hibernate:hibernate-core:3.6.3.Final'
+    }
+}
+```
+
+### ext用户自定义属性
+
+```groovy
+ext {
+    phone = '11111'
+}
+
+task extTest {
+    // 在task中定义
+    ext {
+        address = 'china'
+    }
+    
+    doLast {
+        println "${phone}"
+        println "${address}"
+    }
+}
+```
+
+ext配置的是用户自定义属性，而gradle.properties中一般定义系统属性，环境变量，项目属性，JVM相关配置信息
+
+## springboot项目
+
+```groovy
+plugins {
+    id 'org.springframework.boot' version '2.6.7' //springboot版本号
+    
+    // 类似于maven中的<dependencyManagement>标签，只做依赖的管理，不做实际依赖
+    id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+    id 'java'
+}
+```
+
+或者
+
+```groovy
+buildscript {
+    repositories {
+        maven {url 'https://maven.aliyun.com/repository/public'}
+    }
+    
+    dependencies {
+        classpath 'org.springframework.boot:spring-boot-gradle-plugin:2.4.1'
+    }
+}
+
+// 这样可以不指定版本号，交给spring-boot-gradle-plugin插件
+apply plugin: 'java'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+```
 

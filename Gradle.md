@@ -855,3 +855,93 @@ apply plugin: 'org.springframework.boot'
 apply plugin: 'io.spring.dependency-management'
 ```
 
+## springCloud项目
+
+version.gradle
+
+```groovy
+// 依赖版本管理
+ext {
+    version = [
+        "fastjsonVerision" : '1.2.72'
+        "mybatisPlusVersion" : '3.0.5'
+    ]
+    
+    dependencies = [
+        "fastJson" : "com.alibaba:fasetjson:${version.fastjsonVerision}"
+        "mybatis-plus-boot-starter" : "com.baomidou:mybatis-plus-boot-start:${mybatisPlusVersion}"
+    ]
+}
+```
+
+根工程
+
+```groovy
+// 配置全局，包括root项目和子项目
+allproject {
+    group 'com.xhh'
+    version '1.0'
+   
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
+    
+    // 设置仓库
+    repositories {
+        maven { url ''}
+       
+    }
+    // 公用依赖
+    dependencies {
+        
+    }
+}
+
+apply from : 'version.gradle'
+
+// 配置所有子项目
+subprojects {
+    apply plugin : 'java'
+    apply plugin : 'java-library'
+    apply plugin : 'io.spring.dependency-management'
+    
+    
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+    
+    test {
+        useJunitPlatform()
+    }
+    // 声明了各个依赖的版本，导入时不需要指定依赖的版本
+    dependencyManagement {
+        dependencies {
+            for (depJar in rootProject.ext.dependencies) {
+                dependency depJar.value
+            }
+        }
+        
+        imports {
+            mavenBom 'org.springframework.cloud:spring-cloud-dependencies:${springCloudVerion}'
+            mavenBom 'org.springframework.cloud:spring-cloud-alibaba-dependencies:${springCloudAlibabaVersion}'
+        }
+    }
+}
+
+project(':a') {
+    description("描述")
+    dependencies {
+        api 'com.alibaba:fastjson'
+        api 'mysql:mysql-connector-java'
+    }
+}
+
+project(":b") {
+    description("")
+    
+    subjects {
+        apply plugin : 'java-library'
+        apply plugin : 'org.springframewor.boot'
+    }
+}
+```
+

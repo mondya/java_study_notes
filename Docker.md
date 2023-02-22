@@ -60,6 +60,8 @@ systemctl start docker
 
 ### helloWord
 
+注意：如果开启了软路由，即使配置了镜像还是会拉取失败
+
 ```bash
 docker run hello-world
 ```

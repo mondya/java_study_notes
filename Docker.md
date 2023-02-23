@@ -66,3 +66,46 @@ systemctl start docker
 docker run hello-world
 ```
 
+## 命令
+
+### 帮助启动类命令
+
+`systemctl start docker`：启动docker
+
+`systemctl stop docker`：停止docker
+
+`systemctl restart docker`：重启docker
+
+`systemctl status docker`：查看docker状态
+
+`systemctl enable docker`：开机启动
+
+`docker info`：查看docker概要信息
+
+`docker --help`：查看帮助
+
+`docker 具体命令 --help`：查看docker命令帮助文档
+
+### 镜像命令
+
+`docker images`：查看主机上安装的docker镜像
+
+`docker images -a`：列出本地所有镜像，包括历史镜像
+
+`docker images -q`：只显示镜像ID
+
+![image-20230223220950358](D:.\images\image-20230223220950358.png)
+
+REPOSITORY：表示仓库的镜像源
+
+TAG：镜像的标签（同一个仓库可以有多个TAG版本）
+
+IMAGE ID：镜像ID
+
+CREATED：镜像创建事件
+
+SIZE：镜像大小
+
+`docker search xxx` ：查询某个镜像
+
+`docker pull`

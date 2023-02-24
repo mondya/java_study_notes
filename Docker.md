@@ -102,10 +102,34 @@ TAG：镜像的标签（同一个仓库可以有多个TAG版本）
 
 IMAGE ID：镜像ID
 
-CREATED：镜像创建事件
+CREATED：镜像创建时间
 
 SIZE：镜像大小
 
 `docker search xxx` ：查询某个镜像
 
-`docker pull`
+![image-20230224201903420](D:.\images\image-20230224201903420.png)
+
+name：镜像名称
+
+description：镜像说明
+
+starts：点赞数量
+
+official：是否是官方
+
+automated：是否是自动构建
+
+`docker search --limit 5 xxx`：查看前5个镜像
+
+`docker pull xxx`：下载镜像， 没有TAG就是最新版，等价于docker pull :latest
+
+`docker system sf `：查看镜像/容器/数据卷所占的空间
+
+`docker rmi 某个镜像的ID`:移除某个镜像  -f 强制删除
+
+`docker rmi [-f] 镜像名1：TAG 镜像名2：TAG`：删除多个镜像，按照TAG删除
+
+`docker rmi [-f] ${docker images -qa}`：删除本机上所有镜像
+
+ 

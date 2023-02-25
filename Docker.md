@@ -88,11 +88,13 @@ docker run hello-world
 
 ### 镜像命令
 
-`docker images`：查看主机上安装的docker镜像
+#### docker images
 
 `docker images -a`：列出本地所有镜像，包括历史镜像
 
 `docker images -q`：只显示镜像ID
+
+`docker images`：查看主机上安装的docker镜像
 
 ![image-20230223220950358](D:.\images\image-20230223220950358.png)
 
@@ -105,6 +107,8 @@ IMAGE ID：镜像ID
 CREATED：镜像创建时间
 
 SIZE：镜像大小
+
+#### 下载/查询
 
 `docker search xxx` ：查询某个镜像
 
@@ -126,10 +130,80 @@ automated：是否是自动构建
 
 `docker system sf `：查看镜像/容器/数据卷所占的空间
 
-`docker rmi 某个镜像的ID`:移除某个镜像  -f 强制删除
+#### 移除镜像
+
+`docker rmi [-f] 某个镜像的ID`:移除某个镜像  -f 强制删除
 
 `docker rmi [-f] 镜像名1：TAG 镜像名2：TAG`：删除多个镜像，按照TAG删除
 
 `docker rmi [-f] ${docker images -qa}`：删除本机上所有镜像
 
- 
+#### 移除容器
+
+`docker rm [-f] 容器Id`：移除已停止的容器（-f 强制）
+
+#### 启动
+
+`docker run [OPTIONS] xxxx`：运行容器
+
+--name = "新容器名称" ：为容器指定一个名称；
+
+-d：后台运行容器并返回容器ID，也即启动守护式容器（后台运行）；
+
+==-i：以交互模式运行容器，通常与-t一起使用==
+
+==-t：为容器重新分配一个伪输入终端，通常与-i同时使用==，也即启动交互式容器（前台有伪终端，等待交互）
+
+-P：随机端口映射，P为大写
+
+-P：指定端口映射，小写p
+
+> 在censtos中启动ubuntu
+>
+> docker run -it ubuntu /bin/bash
+>
+> -i：交互式操作
+>
+> -t：终端
+>
+> ubuntu：Ubuntu镜像
+>
+> /bin/bash：放在镜像名的命令，交互式Shell，exit退出
+
+#### 运行相关
+
+ `docker ps`：获取正在运行的容器
+
+-a：列出当前所有正在运行的容器+历史上运行过的
+
+-l：显示最近创建的容器
+
+-n 5：显示最近5个创建的容器
+
+-q：静默模式，只显示容器编号
+
+#### 退出容器
+
+`exit`：run进去容器，exit退出，容器终止
+
+`ctrl + p + q`：run进去容器，ctrl + p + q退出，容器不停止
+
+#### 启动已经停止运行的容器
+
+`docker start 容器ID或容器名`
+
+#### 重启/停止
+
+`docker restart 容器ID或者容器名`
+
+`docker stop 容器ID或者容器名`
+
+`docker kill 容器ID或者容器名`：强制停止容器
+
+#### 重要
+
+交互式容器：ubuntu，如果使用docker run -d ubuntu启动容器，然后docker ps -a会发现==容器已经退出==
+
+Docker容器后台运行，必须有一个前台进程。容器运行的命令不是一直挂起的命令（比如运行top,tail），就会自动退出
+
+守护式容器：redis

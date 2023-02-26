@@ -656,7 +656,7 @@ plugins {
 
 注意：
 
-- 如果使用老式插件方式buildscript{}要放在build.grale的最前面，而plugins {} 没有该限制
+- ###### ==如果使用老式插件方式buildscript{}要放在build.grale的最前面，而plugins {} 没有该限制==
 - 托管再gradle插件官网的第三方插件有两种使用方式，一是传统的buildscript方式，一种是plugins DSL方式
 
 #### 自定义插件

@@ -857,19 +857,19 @@ apply plugin: 'io.spring.dependency-management'
 
 ## springCloud项目
 
-version.gradle
+父工程创建version.gradle
 
 ```groovy
 // 依赖版本管理
 ext {
     version = [
-        "fastjsonVerision" : '1.2.72'
+        "fastjsonVerision" : '1.2.72',
         "mybatisPlusVersion" : '3.0.5'
     ]
     
     dependencies = [
-        "fastJson" : "com.alibaba:fasetjson:${version.fastjsonVerision}"
-        "mybatis-plus-boot-starter" : "com.baomidou:mybatis-plus-boot-start:${mybatisPlusVersion}"
+        "fastJson" : "com.alibaba:fasetjson:${version.fastjsonVerision}",
+        "mybatis-plus-boot-starter" : "com.baomidou:mybatis-plus-boot-start:${version.mybatisPlusVersion}"
     ]
 }
 ```
@@ -877,6 +877,32 @@ ext {
 根工程
 
 ```groovy
+// 引入插件
+plugins {
+    id 'org.springframework.boot' version '2.7.9'
+    id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+    id 'java'
+}
+// 或者使用buildScipt引入第三方插件,spring-boot-gradle-plugin这个插件的引入相当于同时引入了boot和management
+buildscript {
+    ext {
+        springBootVersion = '2.2.1.RELEASE'
+        springCloudVersion = 'Hoxton.RELEASE'
+        springCloudAlibabaVersion = '0.2.2.RELEASE'
+    }
+
+    //设置仓库
+    repositories {
+        maven { url 'https://maven.aliyun.com/nexus/content/groups/public/' }
+        maven { url 'https://repo.spring.io/milestone'}
+    }
+
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+    }
+}
+
+
 // 配置全局，包括root项目和子项目
 allproject {
     group 'com.xhh'
@@ -891,7 +917,7 @@ allproject {
         maven { url ''}
        
     }
-    // 公用依赖
+    // 公用依赖，如果需要配置公用依赖需要引入java-library插件，implemetation/api方法需要这个插件才能运行
     dependencies {
         
     }
@@ -904,6 +930,8 @@ subprojects {
     apply plugin : 'java'
     apply plugin : 'java-library'
     apply plugin : 'io.spring.dependency-management'
+    // 需要引入springboot，否则不能识别成功
+    apply plugin : 'org.springframework.boot'
     
     
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -925,13 +953,23 @@ subprojects {
             mavenBom 'org.springframework.cloud:spring-cloud-alibaba-dependencies:${springCloudAlibabaVersion}'
         }
     }
+    
+    // 设置此项，代表所有子项目都需要引入这些依赖，这样项目中没有特殊的话可以不需要引入依赖
+   dependencies {
+        implementation 'org.springframework.boot:spring-boot-starter-web'
+        implementation 'org.springframework.boot:spring-boot-starter-aop'
+        testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        implementation 'mysql:mysql-connector-java'
+    }
 }
 
+// 如果all/subproject已经引入依赖，此项可以不填
 project(':a') {
     description("描述")
+    // 上级all/subprojects需要存在这两个依赖
     dependencies {
-        api 'com.alibaba:fastjson'
-        api 'mysql:mysql-connector-java'
+        implementation 'com.alibaba:fastjson'
+        implementation 'mysql:mysql-connector-java'
     }
 }
 

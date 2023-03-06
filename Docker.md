@@ -140,6 +140,8 @@ automated：是否是自动构建
 
 `docker rmi [-f] ${docker images -qa}`：删除本机上所有镜像
 
+![image-20230306210840030](.\images\image-20230306210840030.png)
+
 #### 移除容器
 
 `docker rm [-f] 容器Id`：移除已停止的容器（-f 强制）
@@ -193,6 +195,8 @@ automated：是否是自动构建
 #### 启动已经停止运行的容器
 
 `docker start 容器ID或容器名`
+
+![image-20230306210955250](.\images\image-20230306210955250.png)
 
 #### 重启/停止
 
@@ -348,3 +352,39 @@ Docker挂载主机目录访问如果出现cannot open directory.:Permission deni
 容器2继承容器1的卷规则：`docker run -it --privileged=true --volumes-from 父类 [--name 自定义镜像名] 容器:tag`
 
 这样host，容器1，容器2数据内容共享
+
+## Tomcat的安装
+
+`docker pull tomcat`：下载最新版tomcat镜像
+
+`docker run -d -p 8080:8080 --name t1 tomcat `：后台启动tomcat，此时访问tomcat80端口报404，需要把tomcat中的webapps.dist改名为webapps，原来的webapps目录为空，可以删除
+
+![image-20230306213241360](.\images\image-20230306213241360.png)
+
+## MySQL的安装
+
+`docker pull mysql:8.0.18`：下载mysql镜像
+
+`docker run -p 3306:3306 -e MYSQL_ROOT_PASSWORD=xhh1999.02.10 -d mysql:8.0.18`：启动mysql并且设置root的密码
+
+`docker exec -it d278c6a0069e /bin/bash`进入mysql容器内部
+
+`mysql -uroot -p`：输入mysql密码进入mysql
+
+`show databases;`：查看mysql中的数据库
+
+![image-20230306223514456](.\images\image-20230306223514456.png)
+
+`create database db01;`：新建数据库db01
+
+`use db01`
+
+`create table if not exist user(id bigint, name varchar(255))`：创建表
+
+`insert into user values(1,'helloworld')`插入数据
+
+`select * from user`：查询数据
+
+> 需要注意中文乱码问题，mysql8.0默认编码utf8，但是5.7不是
+
+![image-20230306223639855](.\images\image-20230306223639855.png)

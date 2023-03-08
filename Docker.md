@@ -388,3 +388,11 @@ Docker挂载主机目录访问如果出现cannot open directory.:Permission deni
 > 需要注意中文乱码问题，mysql8.0默认编码utf8，但是5.7不是
 
 ![image-20230306223639855](.\images\image-20230306223639855.png)
+
+## MySQL安装进阶
+
+`docker run -d -p 3306:3306 --privileged=true -v /xhh/mysql/log:/var/log/mysql -v /xhh/mysql/data:/var/lib/mysql -v /xhh/mysql/conf:/etc/mysql/conf.d -e MYSQL_ROOT_PASSWORD=xhh1999.02.10 --name=mysql mysql:8.0.18`
+
+启动mysql，映射3306端口, 挂载mysql  log,data,conf目录，在conf目录中新建`my.cnf`文件，可添加utf8默认配置，解决5版本下不能插入中文数据问题
+
+## Redis安装

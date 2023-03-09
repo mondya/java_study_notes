@@ -377,13 +377,13 @@ Docker挂载主机目录访问如果出现cannot open directory.:Permission deni
 
 `create database db01;`：新建数据库db01
 
-`use db01`
+`use db01;`
 
-`create table if not exist user(id bigint, name varchar(255))`：创建表
+`create table if not exist user(id bigint, name varchar(255))`;：创建表
 
-`insert into user values(1,'helloworld')`插入数据
+`insert into user values(1,'helloworld');`插入数据
 
-`select * from user`：查询数据
+`select * from user;`：查询数据
 
 > 需要注意中文乱码问题，mysql8.0默认编码utf8，但是5.7不是
 
@@ -396,3 +396,43 @@ Docker挂载主机目录访问如果出现cannot open directory.:Permission deni
 启动mysql，映射3306端口, 挂载mysql  log,data,conf目录，在conf目录中新建`my.cnf`文件，可添加utf8默认配置，解决5版本下不能插入中文数据问题
 
 ## Redis安装
+
+`docker run -d -p 6379:6379 --name=myredis --privileged=true -v /xhh/redis/redis.conf:/etc/redis/redis.conf -v /xhh/redis/data:/data redis redis-server /etc/redis/redis.conf`
+
+在主机上新建redis相关目录，与docker镜像中的redis配置文件进行映射，指定redis的配置文件启动，`redis-cli`进入redis
+
+验证配置文件修改后是否生效：更改redis默认角标大小，默认`databases 16`，在主机中更改，docker容器中的redis也会同步修改，此时select 大于修改后的值，报错
+
+## 主从复制
+
+以安装mysql为例
+
+```yaml
+[mysqld]
+## 设置servier_id，同一局域网中需要唯一
+server_id=101
+## 指定不需要同步的数据库名称
+binlog-ignore-db=mysql
+## 开启二进制日志功能
+log-bin=mall-mysql-bin
+## 设置二进制日志使用内存大小
+binlog_cache_size=1M
+## 设置使用的二进制日志格式(mixed,statement,row)
+binlog_format=mixed
+## 二进制日志过期清理时间，默认为0，表示不自动清理
+expire_logs_days = 7
+## 跳过主从复制中遇到的所有错误或指定类型的错误，避免slave端复制中断
+## 如1062错误：是指一些主键重复，1032错误指主从数据库数据不一致
+slave_skip_errors=1062
+```
+
+
+
+### 新建主服务器容器实例3307
+
+`docker run -p 3307:3306 --name=mysql-master --privileged=true -v /xhh/mysql-master/log:/var/log/mysql -v /xhh/mysql-master/data:/var/lib/mysql-file -v /xhh/mysql-master/conf:/etc/mysql/conf.d -e MYSQL_ROOT_PASSWORD=admin123 -d mysql:8.0.18`
+
+### 新建从服务器容器实例3308
+
+``docker run -p 3308:3306 --name=mysql-slave --privileged=true -v /xhh/mysql-slave/log:/var/log/mysql -v /xhh/mysql-slave/data:/var/lib/mysql -v /xhh/mysql-slave/conf:/etc/mysql/conf.d -e MYSQL_ROOT_PASSWORD=admin123 -d mysql:8.0.18``
+

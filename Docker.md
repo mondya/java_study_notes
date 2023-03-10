@@ -232,7 +232,7 @@ Docker容器后台运行，必须有一个前台进程。容器运行的命令�
 
 #### 进入正在运行的容器并以命令行交互
 
-`docker exec -it 容器ID [/bin/bash]`:
+`docker exec -it 容器ID/容器指定别名 [/bin/bash]`:
 
 `docker attach 容器ID`
 
@@ -403,7 +403,7 @@ Docker挂载主机目录访问如果出现cannot open directory.:Permission deni
 
 验证配置文件修改后是否生效：更改redis默认角标大小，默认`databases 16`，在主机中更改，docker容器中的redis也会同步修改，此时select 大于修改后的值，报错
 
-## 主从复制
+## MySQL主从复制搭建
 
 以安装mysql为例
 
@@ -430,9 +430,92 @@ slave_skip_errors=1062
 
 ### 新建主服务器容器实例3307
 
-`docker run -p 3307:3306 --name=mysql-master --privileged=true -v /xhh/mysql-master/log:/var/log/mysql -v /xhh/mysql-master/data:/var/lib/mysql-file -v /xhh/mysql-master/conf:/etc/mysql/conf.d -e MYSQL_ROOT_PASSWORD=admin123 -d mysql:8.0.18`
+启动master  ： `docker run -p 3307:3306 --name=mysql-master --privileged=true -v /xhh/mysql-master/log:/var/log/mysql -v /xhh/mysql-master/data:/var/lib/mysql -v /xhh/mysql-master/conf:/etc/mysql/conf.d -e MYSQL_ROOT_PASSWORD=admin123 -d mysql:8.0.18`
+
+在`/xhh/mysql-master/conf`目录下新建my.cnf文件
+
+重启mysql-master:`docker restart mysql-master`
+
+创建用户`create user 'slave'@'%' identified by '123456';`
+
+`grant replication slave, replication client on *.* to 'slave'@'%';`：主从复制
+
+![image-20230311002001884](D:.\images\image-20230311002001884.png)
 
 ### 新建从服务器容器实例3308
 
-``docker run -p 3308:3306 --name=mysql-slave --privileged=true -v /xhh/mysql-slave/log:/var/log/mysql -v /xhh/mysql-slave/data:/var/lib/mysql -v /xhh/mysql-slave/conf:/etc/mysql/conf.d -e MYSQL_ROOT_PASSWORD=admin123 -d mysql:8.0.18``
+启动slave ： ``docker run -p 3308:3306 --name=mysql-slave --privileged=true -v /xhh/mysql-slave/log:/var/log/mysql -v /xhh/mysql-slave/data:/var/lib/mysql -v /xhh/mysql-slave/conf:/etc/mysql/conf.d -e MYSQL_ROOT_PASSWORD=admin123 -d mysql:8.0.18``
+
+在`/xhh/mysql-slave/conf`目录下新建my.cnf
+
+```yaml
+[mysqld]
+## 设置servier_id，同一局域网中需要唯一
+server_id=102
+## 指定不需要同步的数据库名称
+binlog-ignore-db=mysql
+## 开启二进制日志功能
+log-bin=mall-mysql-bin
+## 设置二进制日志使用内存大小
+binlog_cache_size=1M
+## 设置使用的二进制日志格式(mixed,statement,row)
+binlog_format=mixed
+## 二进制日志过期清理时间，默认为0，表示不自动清理
+expire_logs_days = 7
+## 跳过主从复制中遇到的所有错误或指定类型的错误，避免slave端复制中断
+## 如1062错误：是指一些主键重复，1032错误指主从数据库数据不一致
+slave_skip_errors=1062
+## relay_log配置中继
+relay_log=mall-mysql-relay-bin
+## log_slave_updates表示slave将复制事件写进自己的二进制日志
+log_slave_updates=1
+## slave设置为只读（具有super权限的用户除外）
+read_only=1
+```
+
+重启master-slave
+
+### 在主数据库中查看主从同步状态
+
+`show master status;`
+
+![image-20230311002626606](.\images\image-20230311002626606.png)
+
+### 在从数据库中配置主从复制
+
+`change master to master_host='宿主机ip',master_user='slave',master_password='123456',master_port=3307,master_log_file='mall-mysql-bin.000004',master_log_pos=710,master_connect_retry=30;`
+
+`master_host`：主数据库的IP地址
+
+`master_port`：主数据库运行端口
+
+`master_user`：在主数据库创建的用于同步数据的用户账号
+
+`master_password`：在主数据库创建的用于同步数据的用户密码
+
+`master_log_file`：指定从数据库要复制数据的日志文件，通过查看主数据的状态，获取file参数
+
+`master_log_pos`：指定从数据库从哪个位置开始复制数据，通过查看主数据的状态，获取position参数
+
+`master_connect_retry`：连接失败重试的时间间隔，单位为秒
+
+`change master to master_host='192.168.31.142',master_user='slave',master_password='123456',master_port=3307,master_log_file='mall-mysql-bin.000004',master_log_pos=1160,master_connect_retry=30;`
+
+![image-20230311005045281](.\images\image-20230311005045281.png)
+
+### 在从数据库中查看主从同步状态
+
+`show slave status \G;`
+
+![image-20230311005145772](.\images\image-20230311005145772.png)
+
+### 在从数据库中开启主从同步
+
+`start slave;`
+
+![image-20230311005315282](D:.\images\image-20230311005315282.png)
+
+mysql8版本设置账号要加一步：执行1：`ALTER USER 'slave'@'%' IDENTIFIED WITH mysql_native_password BY '123456';`
+
+执行2：`flush privileges;`
 

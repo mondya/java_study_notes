@@ -162,6 +162,8 @@ automated：是否是自动构建
 
 -P：指定端口映射，小写p
 
+--port 端口号：指定端口号
+
 > 在censtos中启动ubuntu
 >
 > docker run -it ubuntu /bin/bash
@@ -564,3 +566,55 @@ CRC16算法产生的hash值有16bit，该算法可以产生2^16=65535个值
 - 如果槽位为65535，发送心跳信息的消息头达8k，发送的心跳包过于庞大。在消息头中最占空间的是myslots[CLUSTER_SLOTS/8]，当槽位为65536时，这块的大小是65536/8/1024=8kb，比较浪费带宽
 - redis集群主节点数量基本不可能超过1000个。集群节点越多，心跳包的消息体内携带的数据越多，如果节点过1000个，也会导致网络拥堵，对于节点数在1000以内的redis cluster集群，16384个槽位足够使用
 - 槽位越小，节点少的情况下，压缩比高，容易传输。Redis主节点的配置信息中它所负责的哈希槽是通过一张bitmap的形式来保存的，在传输过程中会对bitmap进行压缩，但是如果bitmap的填充率slots/N很高的话（N表示节点数），bitmap的压缩率就很低。如果节点数很少，而哈希槽数量多的话，bitmap的压缩率也很低。
+
+## 3主3从Redis集群配置
+
+### 启动6台docker
+
+1：`docker run -d --name=redis-node-1 --net host --privileged=true -v /data/redis/share/redis-node-1:/data redis --cluster-enabled yes --appendonly yes --port 6381`
+
+2：`docker run -d --name=redis-node-2 --net host --privileged=true -v /data/redis/share/redis-node-2:/data redis --cluster-enabled yes --appendonly yes --port 6382`
+
+3：`docker run -d --name=redis-node-3 --net host --privileged=true -v /data/redis/share/redis-node-3:/data redis --cluster-enabled yes --appendonly yes --port 6383`
+
+4：`docker run -d --name=redis-node-4 --net host --privileged=true -v /data/redis/share/redis-node-4:/data redis --cluster-enabled yes --appendonly yes --port 6384`
+
+5：`docker run -d --name=redis-node-5 --net host --privileged=true -v /data/redis/share/redis-node-5:/data redis --cluster-enabled yes --appendonly yes --port 6385`
+
+6：`docker run -d --name=redis-node-6 --net host --privileged=true -v /data/redis/share/redis-node-6:/data redis --cluster-enabled yes --appendonly yes --port 6386`
+
+> --net host：使用宿主机的IP和端口，默认
+>
+> --cluster-enabled true：开启redis集群
+>
+> -- appendonly yes：开启持久化
+
+![image-20230311221139778](.\images\image-20230311221139778.png)
+
+### 进入容器redis-node-1并为6台机器构建集群关系
+
+主机ip:`192.168.31.142`
+
+`--cluster-replicas 1`：表示为每个master创建一个slave节点
+
+进入某个redis docker实例
+
+`redis-cli --cluster create 192.168.31.142:6381 192.168.31.142:6382 192.168.31.142:6383 192.168.31.142:6384 192.168.31.142:6385 192.168.31.142:6386 --cluster-replicas 1`
+
+![image-20230311223009098](.\images\image-20230311223009098.png)
+
+![image-20230311223128176](.\images\image-20230311223128176.png)
+
+### 查看集群状态
+
+以6381为切入点，查看节点状态
+
+`redis-cli -p 6381`：进入redis，redis默认端口6379，此时端口号被改成6381
+
+`cluster info`
+
+![image-20230311224701219](.\images\image-20230311224701219.png)
+
+`cluster nodes`
+
+![image-20230311225426239](.\images\image-20230311225426239.png)

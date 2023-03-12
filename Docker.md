@@ -595,9 +595,9 @@ CRC16算法产生的hash值有16bit，该算法可以产生2^16=65535个值
 
 主机ip:`192.168.31.142`
 
-`--cluster-replicas 1`：表示为每个master创建一个slave节点
+`--cluster-replicas 1`：表示为每个master创建一个slave节点，1主1从
 
-进入某个redis docker实例
+进入某个redis docker实例，构建集群关系
 
 `redis-cli --cluster create 192.168.31.142:6381 192.168.31.142:6382 192.168.31.142:6383 192.168.31.142:6384 192.168.31.142:6385 192.168.31.142:6386 --cluster-replicas 1`
 
@@ -605,16 +605,134 @@ CRC16算法产生的hash值有16bit，该算法可以产生2^16=65535个值
 
 ![image-20230311223128176](.\images\image-20230311223128176.png)
 
-### 查看集群状态
+### 查看集群状态/信息
 
 以6381为切入点，查看节点状态
 
 `redis-cli -p 6381`：进入redis，redis默认端口6379，此时端口号被改成6381
 
-`cluster info`
+#### 查看集群的状态
+
+需要进入redis
+
+查看集群的状态：`cluster info`
 
 ![image-20230311224701219](.\images\image-20230311224701219.png)
 
-`cluster nodes`
+#### 查看节点之间的关系
+
+需要进入redis
+
+查看节点之间的关系：`cluster nodes`
 
 ![image-20230311225426239](.\images\image-20230311225426239.png)
+
+#### 查看集群的槽位分配相关信息
+
+查看集群的槽位分配相关信息：`redis-cli --cluster check [主机ip]:端口号`
+
+![image-20230312142553364](.\images\image-20230312142553364.png)
+
+### 读写数据
+
+不能使用`redis-cli -p 6381 `，这样只连接了一台redis，不在该redis分配的槽位时数据不能写入
+
+![image-20230312141442699](.\images\image-20230312141442699.png)
+
+加入`-c`，`redis-cli -p 6381 -c`：链接集群
+
+![image-20230312142156208](.\images\image-20230312142156208.png)
+
+### Redis集群主从切换
+
+#### 关闭redis-node-1
+
+`docker stop redis-node-1`
+
+![image-20230312145501121](.\images\image-20230312145501121.png)
+
+#### 重启redis-node-1
+
+`docker restart redis-node-1`
+
+![image-20230312145947112](.\images\image-20230312145947112.png)
+
+#### 保持原来的主从关系
+
+`docker stop redis-node-6`,`docker start redis-node-6`：先关闭，在重启
+
+![image-20230312151246610](.\images\image-20230312151246610.png)
+
+### 主从扩容
+
+#### 新增6387,6388docker实例
+
+`docker run -d --name=redis-node-7 --net host --privileged=true -v /data/redis/share/redis-node-7:/data redis --cluster-enabled yes --appendonly yes --port 6387`
+
+`docker run -d --name=redis-node-8 --net host --privileged=true -v /data/redis/share/redis-node-8:/data redis --cluster-enabled yes --appendonly yes --port 6388`
+
+#### 将新增的6387节点作为master节点加入集群
+
+`redis-cli --cluster add-node [ip地址]:6387  [ip地址]:6381`
+
+`redis-cli --cluster add-node 192.168.31.142:6387  192.168.31.142:6381`
+
+6387就是将要作为master新增节点
+
+6381就是已存在的节点，指定一个已经存在节点的Ip和端口号，用于将新节点加入到已经存在的集群中
+
+![image-20230312160355025](.\images\image-20230312160355025.png)
+
+![image-20230312160516868](.\images\image-20230312160516868.png)
+
+#### 重新分配槽号
+
+`redis-cli --cluster reshard IP地址:端口号`
+
+`redis-cli --cluster reshard 192.168.31.142:6381`
+
+![image-20230312174444786](.\images\image-20230312174444786.png)
+
+再次查看槽位分配信息
+
+![image-20230312174607089](.\images\image-20230312174607089.png)
+
+#### 为主节点6387挂载slave6388
+
+`redis-cli --cluster add-node ip:新slave端口ip  ip:新master端口ip  --cluster-slave --cluster-master-id 新主机节点ID`
+
+`redis-cli --cluster add-node 192.168.31.142:6388 192.168.31.142:6387 --cluster-slave --cluster-master-id 3a816d4fe438e4e5def869a4fa03996f0cf80622`
+
+![image-20230312181828862](.\images\image-20230312181828862.png)
+
+#### 再次查看节点分配信息
+
+`redis-cli --cluster check 192.168.31.142:6387`
+
+![image-20230312182342170](.\images\image-20230312182342170.png)
+
+### 主从缩容
+
+#### 先删除从节点
+
+`redis-cli --cluster del-node ip:从机端口 从机6388节点ID`
+
+`redis-cli --cluster del-node 192.168.31.142:6388 2eff6b953985e980dfdfdf2850053d93de7bbf22`
+
+![image-20230312184537624](.\images\image-20230312184537624.png)
+
+#### 重新分配槽号
+
+`redis-cli --cluster reshard IP地址:端口号`
+
+![image-20230312185434211](.\images\image-20230312185434211.png)
+
+#### 再次查看节点分配信息
+
+![image-20230312185618506](.\images\image-20230312185618506.png)
+
+#### 删除被清空的master节点6387
+
+`redis-cli --cluster del-node 192.168.31.142:6387 3a816d4fe438e4e5def869a4fa03996f0cf80622`
+
+![image-20230312194423548](.\images\image-20230312194423548.png)

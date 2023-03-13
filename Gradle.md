@@ -63,7 +63,21 @@ allprojects {
 - 在命令行指定文件，例如gradle --init-script yourdir/init.grade -q youProjectName，可以多次输入命令来指定多个init文件
 - 把init.gradle文件放入USER_HOME/.gradle/目录下
 - 把以.gradle结尾的文件放入USER_HOME/.gradle/init.d/ 目录下
+  - 注意，这里的文件名必须以.gradle结尾，而不是init.gradle，如果你想使用init.gradle文件，则应该将它放在USER_HOME/.gradle/目录下。而放在USER_HOME/.gradle/init.d/目录下的文件，是以.gradle结尾的文件，可以是任何名称，只要以.gradle结尾即可
 - 把以.gradle结尾的文件放到 GRADLE_HOME/init.d/ 目录下
+  - 需要注意的是，GRADLE_HOME指的是Gradle的安装目录，而USER_HOME指的是当前用户的主目录，两者是不同的。在Windows上，GRADLE_HOME通常是C:\Gradle，而在Linux或macOS上通常是/usr/local/gradle
+
+### .gradle文件加载顺序
+
+1. 全局位置：先在USER_HOME/.gradle/init.gradle文件中查找，如果存在则加载它。
+
+2. 相对位置：然后在当前项目根目录下的init.gradle文件中查找，如果存在则加载它。
+
+3. 用户自定义位置：然后在USER_HOME/.gradle/init.d/目录下查找所有以.gradle结尾的文件，并按照字母顺序依次加载。这脚本文件将覆盖前面加载的文件中的同名方法和属性。
+
+4. Gradle默认位置：最后再加载GRADLE_HOME/init.d/目录下的所有以.gradle结尾的文件，同样按照字母顺序依次加载。这些脚本文件也将覆盖前面加载的文件中的同名方法和属性。
+
+总之，Gradle的加载顺序是自下而上，自左向右的。也就是说，越靠近下面的配置越先被加载和执行，而同级配置按照字母顺序依次执行。因此，如果存在同名的方法和属性，后面的配置会覆盖前面的配置。
 
 ### 仓库地址说明
 

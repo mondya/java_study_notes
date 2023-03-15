@@ -751,3 +751,98 @@ DockerFile是用来构建Docker镜像的文本文件，是由一条条构建镜�
 从应用软件的角度来看，DockerFile，Docker镜像和Docker容器分别代表软件的三个不同阶段，DockerFile是软件的原材料，Docker镜像是软件的交付品，Docker容器则可以认为是软件镜像的运行态，也即依照镜像运行的容器实例。
 
 ### DockerFile保留字
+
+#### FROM
+
+基础镜像，当前新镜像是基于哪个镜像，指定一个已经存在的镜像作为模板，第一条必须是FROM
+
+#### MAINTAINER
+
+镜像维护者的姓名和邮箱地址
+
+#### RUN
+
+容器构建时需要运行的命令，它有两种格式：`shell格式`或者`exec格式`，RUN在docker build时运行
+
+#### EXPOSE
+
+当前容器对外暴露出的端口
+
+#### WORKDIR
+
+指定在创建容器后，终端默认登陆进来的工作目录
+
+#### USER
+
+指定该镜像以什么样的用户去执行，如果不指定，默认root用户
+
+#### ENV
+
+用来在构建镜像过程中设置环境变量
+
+```dockerfile
+ENV MY_PATH /user/mytest
+
+# 这个环境变量可以在后续的任何RUN指令中使用，这就如同在命令前面指定了环境变量前缀一样；也可以直接在其他指令中直接使用这些环境变量，比如 WORKDIR $MY_PATH
+```
+
+#### ADD
+
+将宿主机目录下的文件拷贝进镜像且会自动处理URL和解压tar压缩包
+
+#### COPY
+
+类似ADD，拷贝文件和目录到镜像中。将从构建上下文目录中<源文件>的文件/目录复制到新的一层的镜像内的<目标路径>位置
+
+```dockerfile
+COPY [src] [dest]
+
+# <src源路径>：源文件或者源目录  <dest目标路径>：容器内指定的路径，该路径不用事先建好
+```
+
+#### VOLUME
+
+容器数据卷，用于数据保存和持久化工作
+
+#### CMD
+
+指定容器启动后要执行的操作
+
+注意：DockerFile中可以有多个CMD指令，==但是只有最后一个生效，CMD会被docker run之后的参数替换==
+
+和RUN命令的区别：CMD在docker run阶段运行；RUN在docker build阶段运行
+
+如果此时我们在容器启动时加上`/bin/bash`，即`docker run -it -p 8080:8080 tomcat /bin/bash`此时进入`localhost:8080`会发现页面404
+
+```dockerfile
+# 运行Tomcat容器时，容器最后执行的CMD命令
+EXPOSE 8080
+CMD ["catalina.sh", "run"]
+
+# 此时加上/bin/bash相当于在命令后面
+CMD ["/bin/bash", "run"]
+# catalina.sh被覆盖了
+```
+
+#### ENTRYPOINT
+
+也是用来指定一个容器启动时要运行的命令
+
+类似于CMD指令，但是ENTRYPOINT==不会被docker run后面的命令覆盖==，而且这些命令行参数==会被当做参数带给ENTRYPOINT指定的程序==
+
+当指定了ENTRYPOINT后，CMD的含义就发生了变化，不在是直接运行其命令而是将CMD的内容作为参数传递给ENTRYPOINT指令
+
+假设已通过DockerFile构建了nginx:test镜像
+
+```dockerfile
+FROM nginx
+
+ENTRYPOINT ["nginx", "-c"] #定参
+CMD ["/etc/nginx/nginx.conf"] #变参
+```
+
+`docker run nginx:test`  ---> 衍生出的实际命令`nginx -c /etc/nginx/nginx.conf`
+
+`docker run nignx:test -c /etc/nignx/new.conf`  ---> 衍生出的实际命令`nginx -c /etc/nginx/new.conf`
+
+![image-20230315231026453](.\images\image-20230315231026453.png)

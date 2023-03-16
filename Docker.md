@@ -1,4 +1,4 @@
-简介
+## 简介
 
 是一种轻量级、可执行的独立软件包，它包含运行某个软件所需的所有内容，我们把应用程序和配置依赖打包好形成一个可交付的运行环境（包括代码、运行时需要的库、环境变量和配置文件等），这个打包好的运行环境就是image镜像文件，通过这个文件才能生成容器实例。
 
@@ -762,7 +762,7 @@ DockerFile是用来构建Docker镜像的文本文件，是由一条条构建镜�
 
 #### RUN
 
-容器构建时需要运行的命令，它有两种格式：`shell格式`或者`exec格式`，RUN在docker build时运行
+容器构建时需要运行的命令，它有两种格式：`shell格式`或者`exec格式`，RUN在docker build时运行，等同于在终端执行命令
 
 #### EXPOSE
 
@@ -846,3 +846,47 @@ CMD ["/etc/nginx/nginx.conf"] #变参
 `docker run nignx:test -c /etc/nignx/new.conf`  ---> 衍生出的实际命令`nginx -c /etc/nginx/new.conf`
 
 ![image-20230315231026453](.\images\image-20230315231026453.png)
+
+### 使用DockerFile创建自定义centos
+
+```dockerfile
+FROM centos:7
+MAINTAINER xhh<xhh19990210@gmail.com>
+ENV MYPATH /usr/local
+WORKDIR $MYPATH
+
+# 安装vim编辑器
+RUN yum -y install vim
+
+# 安装ifconfig命令
+RUN yum -y install net-tools
+
+# 安装java8以及lib库
+RUN yum -y install glibc.i686
+RUN mkdir /usr/local/java
+
+# ADD是相对路径jar,把jdk-8u171-linux-x64.tar.gz添加到容器中，安装包必须和DockerFile文件在同一个目录下
+ADD jdk-8u171-linux-x64.tar.gz /usr/local/java/
+
+# 配置java环境变量
+ENV JAVA_HOME /usr/local/java/jdk1.8.0_171
+ENV JRE_HOME $JAVA_HOME/jre
+ENV CLASSPATH $JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools:$JRE_HOME/lib:$CLASSPATH
+ENV PATH $JAVA_HOME/bin:$PATH
+
+EXPOSE 80
+
+CMD echo $MYPATH
+CMD echo "success-----------ok"
+CMD /bin/bash
+```
+
+#### 构建
+
+`docker build -t 新镜像名字:TAG .`，注意TAG后面有个空格，有个点
+
+`docker build -t centosjava8:1.5 .`
+
+![image-20230316220231696](.\images\image-20230316220231696.png)
+
+![image-20230316220457635](D:.\images\image-20230316220457635.png)

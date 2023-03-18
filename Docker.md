@@ -841,9 +841,9 @@ ENTRYPOINT ["nginx", "-c"] #定参
 CMD ["/etc/nginx/nginx.conf"] #变参
 ```
 
-`docker run nginx:test`  ---> 衍生出的实际命令`nginx -c /etc/nginx/nginx.conf`
+按照dockerfile编写执行：`docker run nginx:test`  ---> 衍生出的实际命令`nginx -c /etc/nginx/nginx.conf`
 
-`docker run nignx:test -c /etc/nignx/new.conf`  ---> 衍生出的实际命令`nginx -c /etc/nginx/new.conf`
+传参运行：`docker run nignx:test -c /etc/nignx/new.conf`  ---> 衍生出的实际命令`nginx -c /etc/nginx/new.conf`
 
 ![image-20230315231026453](.\images\image-20230315231026453.png)
 
@@ -881,12 +881,58 @@ CMD echo "success-----------ok"
 CMD /bin/bash
 ```
 
-#### 构建
+## 构建镜像
 
-`docker build -t 新镜像名字:TAG .`，注意TAG后面有个空格，有个点
+`docker build -t 新镜像名字:TAG .`，注意TAG后面有个空格，有个点，代表上下文路径。上下文路径是指docker在构建镜像，有时候需要使用本机的文件，docker build得知这个路径后，会将路径下的所有内容打包。
 
 `docker build -t centosjava8:1.5 .`
 
 ![image-20230316220231696](.\images\image-20230316220231696.png)
 
 ![image-20230316220457635](D:.\images\image-20230316220457635.png)
+
+## 虚悬镜像
+
+仓库名，标签都是<none>的镜像，虚悬镜像都是发生错误的镜像，应该剔除
+
+`docker images ls -f dangling=true`：列出虚悬镜像，即resository和tag都为<none>的镜像
+
+`docker image prune`：剔除所有虚悬镜像
+
+## Docker微服务
+
+把项目打包成jar
+
+### 编写Dockerfile
+
+```dockerfile
+# 基础镜像使用Java
+FROM java:8
+# 作者
+MAINTAINER xhh
+
+# VOLUME 指定临时文件目录为/tmp，在主机/var/lib/docker目录下创建了一个临时文件并链接到容器的/tmp
+VOLUME /tmp
+
+# 将jar包添加到容器中更名为xhh_test.jar
+ADD spring-twoSon-1.0.jar xhh_test.jar
+
+# 运行jar包
+RUN bash -c 'touch /xhh_test.jar'
+ENTRYPOINT ["java", "-jar", "/xhh_test.jar"]
+
+# 暴露6001端口作为微服务端口
+EXPOSE 6001
+```
+
+### 构建
+
+`docker build -t xhh_docker:1.0 .`
+
+![image-20230318223627898](.\images\image-20230318223627898.png)
+
+### 验证
+
+![image-20230318224921550](.\images\image-20230318224921550.png)
+
+![image-20230318224955086](.\images\image-20230318224955086.png)

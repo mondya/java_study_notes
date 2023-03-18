@@ -997,3 +997,6 @@ project(":b") {
 }
 ```
 
+### 注意
+
+如果子项目gradle build失败，那么子项目settings.gradle需要删除

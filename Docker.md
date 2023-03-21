@@ -82,7 +82,9 @@ docker run hello-world
 
 `systemctl enable docker`：开机启动
 
-`docker info`：查看docker概要信息
+`docker info`：查看docker系统信息，包括镜像和容器数
+
+`doker inspect [容器id/容器别名]`：获取镜像的相关信息
 
 `docker --help`：查看帮助
 
@@ -946,3 +948,37 @@ EXPOSE 6001
 | none           | 容器有独立的NetWork namespace，但是并没有对其进行任何网络设置，如分配weth pari和网桥链接，IP等 |
 | container      | 新创建的容器不会创建自己的网卡和配置自己的IP，而是和一个指定的容器共享IP，端口范围等 |
 
+### Bridge
+
+Docker服务默认创建一个docker0网桥（其上有一个docker0内部接口），该桥接网络的名称为docker0，它在内核层连通了其他的物理或虚拟网卡，这就将所有容器和本地主机都放在同一个物理网络。Docker默认指定了docker0接口的IP地址和子网掩码，==让主机和容器之间可以通过网桥相互通信==。
+
+`docker network inspect bridge | grep name`：查看bridge网络的详细信息，并通过grep获取名称项，名称不填写默认docke0
+
+- Docker使用Linux桥接，在宿主机虚拟一个Docker容器网桥（docker0），Docker启动一个容器时会根据Docker网桥的网段分配给容器一个IP地址，称为Container-IP，同时Docker网桥是每个容器的默认网关。因为在同一宿主机内的容器都接入同一个网段，这样容器之间就能够通过容器的Container-IP直接通信。
+- docker run的时候，没有指定network时默认使用的桥接模式就是bridge，也就是docker0。
+
+- 整个宿主机的网桥模式都是docker0，类似一个交换机有一堆接口，每个接口叫做veth，在本地主机和容器内分别创建也给虚拟接口，并让他们彼此联通（这样一对接口叫做veth pari）；每个容器实例内部也有一块网卡，每个接口叫做eth0;docker0上面的每个veth匹配某个容器实例内部的eth0，两两配对，一一匹配
+
+![image-20230321213952115](.\images\image-20230321213952115.png)
+
+`docker run -d -p 8081:8080 --name tomcat1 tomcat`
+
+`docker run -d -p 8082:8080 --name tomcat2 tomcat`
+
+启动两个tomcat，查看主机端口`ip addr`
+
+![image-20230321220643796](.\images\image-20230321220643796.png)
+
+### Host
+
+直接使用宿主机的IP和外界进行通信，不在需要额外进行NAT转换
+
+`docker run -d -p 8083:8080 --network host --name tomcat3 tomcat`
+
+使用宿主机Ip启动tomcat会发出警告
+
+原因：docker启动时指定--network=host或者-net=host，如果还指定了-p端口映射，这时会发出警告，并且通过-p 设置的参数将会失效，端口号会以主机端口号为主，重复时递增
+
+容器将==不会获得==一个独立的NetWork NameSpace，而是和宿主机共用一个NetWork NameSpace。==容器将不会虚拟出自己的网卡而是使用宿主机的IP和端口==
+
+![image-20230321223313309](.\images\image-20230321223313309.png)

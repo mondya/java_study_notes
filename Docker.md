@@ -941,6 +941,10 @@ EXPOSE 6001
 
 ## Docker网络
 
+`docker network ls`：查看docker网络
+
+`docker network create [网络名]`：创建自定义网络
+
 | 网络模式       | 简介                                                         |
 | -------------- | ------------------------------------------------------------ |
 | bridge（默认） | 为每一个容器分配、设置IP等，并将容器链接到一个`docker0`，虚拟网桥，默认为该模式 |
@@ -982,3 +986,38 @@ Docker服务默认创建一个docker0网桥（其上有一个docker0内部接口
 容器将==不会获得==一个独立的NetWork NameSpace，而是和宿主机共用一个NetWork NameSpace。==容器将不会虚拟出自己的网卡而是使用宿主机的IP和端口==
 
 ![image-20230321223313309](.\images\image-20230321223313309.png)
+
+### None
+
+禁用网络功能，只有lo标识(即只有127.0.0.1)
+
+### Container
+
+新建的容器和已经存在的一个容器共享一个网络Ip配置而不是和宿主机共享。新创建的容器不会创建自己的网卡，配置自己的IP，而是和一个指定的容器共享IP，端口范围等。同样，两个容器除了网络方面，其他的如问价系统，进程列表等还是隔离的
+
+![image-20230323212401608](.\images\image-20230323212401608.png)
+
+`docker run -d -p 8085:8080 --name tomcat85 tomcat`
+`docker run -d -p 8086:8080 --network container:tomcat85 --name tomcat`
+
+报错，两个tomcat都是8080，端口冲突，使用alpine验证
+
+`docker run -it --name alpine1 alpine /bin/sh `
+
+`docker run -it --network container:apline1 --name apline2 /bin/sh`
+
+![image-20230323213815548](.\images\image-20230323213815548.png)
+
+### 自定义网络
+
+为了能够直接Ping通服务名
+
+`docker network create xhh_netwokr`
+
+启动两个tomcat：`docker run -d -p 8081:8080 --network xhh_network --name tomcat81 tomcat`,`docker run -d -p 8082:8080 --network xhh_network --name tomcat82 tomcat`
+
+此时ping服务名能够ping通
+
+==自定义网络本身就维护了主机名和ip的对应关系（ip和域名都能通）==
+
+## Docker-compose容器编排

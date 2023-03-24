@@ -1021,3 +1021,37 @@ Docker服务默认创建一个docker0网桥（其上有一个docker0内部接口
 ==自定义网络本身就维护了主机名和ip的对应关系（ip和域名都能通）==
 
 ## Docker-compose容器编排
+
+Compose允许用户通过一个单独的==docker-compose.yml==（YAML格式）来定义一组相关联的应用容器为一个项目(project)
+
+### 安装docker compose
+
+- 下载`curl -SL https://github.com/docker/compose/releases/download/v2.16.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose`
+
+- 更改权限`chomd +x /usr/local/bin/docker-compose`
+
+![image-20230324212608123](.\images\image-20230324212608123.png)
+
+### 常用命令
+
+`docker-compose up`：启动所有docker-compose服务
+
+`docker-compose up -d`：==启动所有的docker-compose服务并后台运行==
+
+`docker-compose down`：==停止并删除容器，网络，卷，镜像==
+
+`docker-compose exec yml里面的服务id /bin/bash` ：进入容器实例内部
+
+`docker-compose ps`：展示当前docker-compose编排过的运行的所有容器
+
+`docker-compose logs yml里面的服务Id`： 查看容器输入日志
+
+`docker-compose config`：==检查配置==
+
+`docker-compose config -q`：==检查配置，有问题才有输出==
+
+`docker-compose restart`：重启服务
+
+`docker-compose start`：启动服务
+
+`docker-compose stop`：停止服务

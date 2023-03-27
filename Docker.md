@@ -166,6 +166,8 @@ automated：是否是自动构建
 
 --port 端口号：指定端口号
 
+`--restart=always`：随着docker重启而重启
+
 > 在censtos中启动ubuntu
 >
 > docker run -it ubuntu /bin/bash
@@ -253,6 +255,10 @@ exec是在容器中打开新的终端，并且可以启动新的进程，用exit
 `docker export 容器ID > 文件名.tar`：导出容器的内容流作为一个tar归档文件
 
 `cat 文件名.tar | docker import - 镜像用户/镜像名：镜像版本号`：从tar包中的内容创建一个新的文件系统并导入为镜像
+
+#### 查看容器CPU，内存和网络流量的使用情况
+
+`docker stats`
 
 ## 镜像的分层概念
 
@@ -1055,3 +1061,87 @@ Compose允许用户通过一个单独的==docker-compose.yml==（YAML格式）�
 `docker-compose start`：启动服务
 
 `docker-compose stop`：停止服务
+
+### docker-compose.yml文件
+
+```yaml
+version : "3"
+
+services:
+	microService:
+		image: xhh_docker:1.0
+		container_name: ms01
+		ports:
+			- "6001:6001"
+		volumes:
+			- /app/microService:/data
+		newworks:
+			- xhh_net
+		depends_on:
+			- redis
+			- mysql
+	
+    
+    redis:
+    	image: redis:6.0.8
+    	ports: 
+    		- "6379:6379"
+    	volumes:
+    		- /app/redis/redis.conf:/etc/redis/redis.conf
+    		- /app/redis/data:/data
+    	newworks:
+    		- xhh_net
+    	command: redis-server /etc/redis/redis.conf
+    	
+    mysql:
+   		image: mysql:8.0.18
+   		environment:
+   			MYSQL_ROOT_PASSWORD: 'admin123'
+   			MYSQL_ALLOW_EMPTY_PASSWORD: 'no'
+   			MYSQL_DATABASE: 'db2021'
+   		ports:
+   			- '3306:3306'
+   		volumes:
+   			- /app/mysql/db: /var/lib/mysql
+   			- /app/mysql/conf/my.cnf: /etc/my.cnf
+   			- /app/mysql/init: /docker-entrypoint-initdb.d
+   		network:
+   			- xhh_net
+   		command: --default-authentication-plugin = mysql_native_password # 解决外部无法访问
+   	networks:
+   		xhh_net:
+			
+```
+
+## Portainer可视化
+
+// TODO
+
+## Docker容器监控（CAdvisor+InfluxDB+Granfana）
+
+### CAdvisor
+
+CAdvisor是一个容器资源监控工具，包括容器的内存，CPU，网络IO，磁盘IO等监控，同时提供了一个WEB页面用于查看容器的实时运行状态。CAdvisor默认存储2分钟的数据，而且只是针对单物理机。
+
+CAdvisor功能主要有两点：
+
+- 展示Host和容器两个层次的监控数据
+- 展示历史变化数据
+
+### InfluxDB
+
+InfluxDB是用GO编写的一个开源分布式时序，时间和指标数据库，无需外部依赖
+
+主要功能：
+
+- 基于时间序列，支持与时间有关的相关函数（如最大、最小、求和等）
+- 可度量性：你可以实时对大量数据进行计算
+- 基于事件：它支持任意的是事件数据
+
+### Granfana
+
+是一个开源的数据监控分析可视化平台
+
+主要特性：
+
+- 灵活丰富的图形化选项

@@ -1,4 +1,4 @@
-简介
+## 简介
 
 是一种轻量级、可执行的独立软件包，它包含运行某个软件所需的所有内容，我们把应用程序和配置依赖打包好形成一个可交付的运行环境（包括代码、运行时需要的库、环境变量和配置文件等），这个打包好的运行环境就是image镜像文件，通过这个文件才能生成容器实例。
 
@@ -82,7 +82,9 @@ docker run hello-world
 
 `systemctl enable docker`：开机启动
 
-`docker info`：查看docker概要信息
+`docker info`：查看docker系统信息，包括镜像和容器数
+
+`doker inspect [容器id/容器别名]`：获取镜像的相关信息
 
 `docker --help`：查看帮助
 
@@ -163,6 +165,8 @@ automated：是否是自动构建
 -P：指定端口映射，小写p
 
 --port 端口号：指定端口号
+
+`--restart=always`：随着docker重启而重启
 
 > 在censtos中启动ubuntu
 >
@@ -251,6 +255,10 @@ exec是在容器中打开新的终端，并且可以启动新的进程，用exit
 `docker export 容器ID > 文件名.tar`：导出容器的内容流作为一个tar归档文件
 
 `cat 文件名.tar | docker import - 镜像用户/镜像名：镜像版本号`：从tar包中的内容创建一个新的文件系统并导入为镜像
+
+#### 查看容器CPU，内存和网络流量的使用情况
+
+`docker stats`
 
 ## 镜像的分层概念
 
@@ -736,3 +744,404 @@ CRC16算法产生的hash值有16bit，该算法可以产生2^16=65535个值
 `redis-cli --cluster del-node 192.168.31.142:6387 3a816d4fe438e4e5def869a4fa03996f0cf80622`
 
 ![image-20230312194423548](.\images\image-20230312194423548.png)
+
+## DockerFile
+
+DockerFile是用来构建Docker镜像的文本文件，是由一条条构建镜像所需的指令和参数构成的脚本。
+
+### DockerFile内容基础知识
+
+- 每条保留字指令都==必须为大写字母==并且后面要跟随至少一个参数
+- 指令按照从上到下，顺序执行
+- `# `表示注释
+- 每条指令都会创建一个新的镜像层并对镜像进行提交
+
+从应用软件的角度来看，DockerFile，Docker镜像和Docker容器分别代表软件的三个不同阶段，DockerFile是软件的原材料，Docker镜像是软件的交付品，Docker容器则可以认为是软件镜像的运行态，也即依照镜像运行的容器实例。
+
+### DockerFile保留字
+
+#### FROM
+
+基础镜像，当前新镜像是基于哪个镜像，指定一个已经存在的镜像作为模板，第一条必须是FROM
+
+#### MAINTAINER
+
+镜像维护者的姓名和邮箱地址
+
+#### RUN
+
+容器构建时需要运行的命令，它有两种格式：`shell格式`或者`exec格式`，RUN在docker build时运行，等同于在终端执行命令
+
+#### EXPOSE
+
+当前容器对外暴露出的端口
+
+#### WORKDIR
+
+指定在创建容器后，终端默认登陆进来的工作目录
+
+#### USER
+
+指定该镜像以什么样的用户去执行，如果不指定，默认root用户
+
+#### ENV
+
+用来在构建镜像过程中设置环境变量
+
+```dockerfile
+ENV MY_PATH /user/mytest
+
+# 这个环境变量可以在后续的任何RUN指令中使用，这就如同在命令前面指定了环境变量前缀一样；也可以直接在其他指令中直接使用这些环境变量，比如 WORKDIR $MY_PATH
+```
+
+#### ADD
+
+将宿主机目录下的文件拷贝进镜像且会自动处理URL和解压tar压缩包
+
+#### COPY
+
+类似ADD，拷贝文件和目录到镜像中。将从构建上下文目录中<源文件>的文件/目录复制到新的一层的镜像内的<目标路径>位置
+
+```dockerfile
+COPY [src] [dest]
+
+# <src源路径>：源文件或者源目录  <dest目标路径>：容器内指定的路径，该路径不用事先建好
+```
+
+#### VOLUME
+
+容器数据卷，用于数据保存和持久化工作
+
+#### CMD
+
+指定容器启动后要执行的操作
+
+注意：DockerFile中可以有多个CMD指令，==但是只有最后一个生效，CMD会被docker run之后的参数替换==
+
+和RUN命令的区别：CMD在docker run阶段运行；RUN在docker build阶段运行
+
+如果此时我们在容器启动时加上`/bin/bash`，即`docker run -it -p 8080:8080 tomcat /bin/bash`此时进入`localhost:8080`会发现页面404
+
+```dockerfile
+# 运行Tomcat容器时，容器最后执行的CMD命令
+EXPOSE 8080
+CMD ["catalina.sh", "run"]
+
+# 此时加上/bin/bash相当于在命令后面
+CMD ["/bin/bash", "run"]
+# catalina.sh被覆盖了
+```
+
+#### ENTRYPOINT
+
+也是用来指定一个容器启动时要运行的命令
+
+类似于CMD指令，但是ENTRYPOINT==不会被docker run后面的命令覆盖==，而且这些命令行参数==会被当做参数带给ENTRYPOINT指定的程序==
+
+当指定了ENTRYPOINT后，CMD的含义就发生了变化，不在是直接运行其命令而是将CMD的内容作为参数传递给ENTRYPOINT指令
+
+假设已通过DockerFile构建了nginx:test镜像
+
+```dockerfile
+FROM nginx
+
+ENTRYPOINT ["nginx", "-c"] #定参
+CMD ["/etc/nginx/nginx.conf"] #变参
+```
+
+按照dockerfile编写执行：`docker run nginx:test`  ---> 衍生出的实际命令`nginx -c /etc/nginx/nginx.conf`
+
+传参运行：`docker run nignx:test -c /etc/nignx/new.conf`  ---> 衍生出的实际命令`nginx -c /etc/nginx/new.conf`
+
+![image-20230315231026453](.\images\image-20230315231026453.png)
+
+### 使用DockerFile创建自定义centos
+
+```dockerfile
+FROM centos:7
+MAINTAINER xhh<xhh19990210@gmail.com>
+ENV MYPATH /usr/local
+WORKDIR $MYPATH
+
+# 安装vim编辑器
+RUN yum -y install vim
+
+# 安装ifconfig命令
+RUN yum -y install net-tools
+
+# 安装java8以及lib库
+RUN yum -y install glibc.i686
+RUN mkdir /usr/local/java
+
+# ADD是相对路径jar,把jdk-8u171-linux-x64.tar.gz添加到容器中，安装包必须和DockerFile文件在同一个目录下
+ADD jdk-8u171-linux-x64.tar.gz /usr/local/java/
+
+# 配置java环境变量
+ENV JAVA_HOME /usr/local/java/jdk1.8.0_171
+ENV JRE_HOME $JAVA_HOME/jre
+ENV CLASSPATH $JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools:$JRE_HOME/lib:$CLASSPATH
+ENV PATH $JAVA_HOME/bin:$PATH
+
+EXPOSE 80
+
+CMD echo $MYPATH
+CMD echo "success-----------ok"
+CMD /bin/bash
+```
+
+## 构建镜像
+
+`docker build -t 新镜像名字:TAG .`，注意TAG后面有个空格，有个点，代表上下文路径。上下文路径是指docker在构建镜像，有时候需要使用本机的文件，docker build得知这个路径后，会将路径下的所有内容打包。
+
+`docker build -t centosjava8:1.5 .`
+
+![image-20230316220231696](.\images\image-20230316220231696.png)
+
+![image-20230316220457635](D:.\images\image-20230316220457635.png)
+
+## 虚悬镜像
+
+仓库名，标签都是<none>的镜像，虚悬镜像都是发生错误的镜像，应该剔除
+
+`docker images ls -f dangling=true`：列出虚悬镜像，即resository和tag都为<none>的镜像
+
+`docker image prune`：剔除所有虚悬镜像
+
+## Docker微服务
+
+把项目打包成jar
+
+### 编写Dockerfile
+
+```dockerfile
+# 基础镜像使用Java
+FROM java:8
+# 作者
+MAINTAINER xhh
+
+# VOLUME 指定临时文件目录为/tmp，在主机/var/lib/docker目录下创建了一个临时文件并链接到容器的/tmp
+VOLUME /tmp
+
+# 将jar包添加到容器中更名为xhh_test.jar
+ADD spring-twoSon-1.0.jar xhh_test.jar
+
+# 运行jar包
+RUN bash -c 'touch /xhh_test.jar'
+ENTRYPOINT ["java", "-jar", "/xhh_test.jar"]
+
+# 暴露6001端口作为微服务端口
+EXPOSE 6001
+```
+
+### 构建
+
+`docker build -t xhh_docker:1.0 .`
+
+![image-20230318223627898](.\images\image-20230318223627898.png)
+
+### 验证
+
+![image-20230318224921550](.\images\image-20230318224921550.png)
+
+![image-20230318224955086](.\images\image-20230318224955086.png)
+
+## Docker网络
+
+`docker network ls`：查看docker网络
+
+`docker network create [网络名]`：创建自定义网络
+
+| 网络模式       | 简介                                                         |
+| -------------- | ------------------------------------------------------------ |
+| bridge（默认） | 为每一个容器分配、设置IP等，并将容器链接到一个`docker0`，虚拟网桥，默认为该模式 |
+| host           | 容器将不会虚拟出自己的网卡，配置自己的IP等，而是使用主机的IP和端口 |
+| none           | 容器有独立的NetWork namespace，但是并没有对其进行任何网络设置，如分配weth pari和网桥链接，IP等 |
+| container      | 新创建的容器不会创建自己的网卡和配置自己的IP，而是和一个指定的容器共享IP，端口范围等 |
+
+### Bridge
+
+Docker服务默认创建一个docker0网桥（其上有一个docker0内部接口），该桥接网络的名称为docker0，它在内核层连通了其他的物理或虚拟网卡，这就将所有容器和本地主机都放在同一个物理网络。Docker默认指定了docker0接口的IP地址和子网掩码，==让主机和容器之间可以通过网桥相互通信==。
+
+`docker network inspect bridge | grep name`：查看bridge网络的详细信息，并通过grep获取名称项，名称不填写默认docke0
+
+- Docker使用Linux桥接，在宿主机虚拟一个Docker容器网桥（docker0），Docker启动一个容器时会根据Docker网桥的网段分配给容器一个IP地址，称为Container-IP，同时Docker网桥是每个容器的默认网关。因为在同一宿主机内的容器都接入同一个网段，这样容器之间就能够通过容器的Container-IP直接通信。
+- docker run的时候，没有指定network时默认使用的桥接模式就是bridge，也就是docker0。
+
+- 整个宿主机的网桥模式都是docker0，类似一个交换机有一堆接口，每个接口叫做veth，在本地主机和容器内分别创建也给虚拟接口，并让他们彼此联通（这样一对接口叫做veth pari）；每个容器实例内部也有一块网卡，每个接口叫做eth0;docker0上面的每个veth匹配某个容器实例内部的eth0，两两配对，一一匹配
+
+![image-20230321213952115](.\images\image-20230321213952115.png)
+
+`docker run -d -p 8081:8080 --name tomcat1 tomcat`
+
+`docker run -d -p 8082:8080 --name tomcat2 tomcat`
+
+启动两个tomcat，查看主机端口`ip addr`
+
+![image-20230321220643796](.\images\image-20230321220643796.png)
+
+### Host
+
+直接使用宿主机的IP和外界进行通信，不在需要额外进行NAT转换
+
+`docker run -d -p 8083:8080 --network host --name tomcat3 tomcat`
+
+使用宿主机Ip启动tomcat会发出警告
+
+原因：docker启动时指定--network=host或者-net=host，如果还指定了-p端口映射，这时会发出警告，并且通过-p 设置的参数将会失效，端口号会以主机端口号为主，重复时递增
+
+容器将==不会获得==一个独立的NetWork NameSpace，而是和宿主机共用一个NetWork NameSpace。==容器将不会虚拟出自己的网卡而是使用宿主机的IP和端口==
+
+![image-20230321223313309](.\images\image-20230321223313309.png)
+
+### None
+
+禁用网络功能，只有lo标识(即只有127.0.0.1)
+
+### Container
+
+新建的容器和已经存在的一个容器共享一个网络Ip配置而不是和宿主机共享。新创建的容器不会创建自己的网卡，配置自己的IP，而是和一个指定的容器共享IP，端口范围等。同样，两个容器除了网络方面，其他的如问价系统，进程列表等还是隔离的
+
+![image-20230323212401608](.\images\image-20230323212401608.png)
+
+`docker run -d -p 8085:8080 --name tomcat85 tomcat`
+`docker run -d -p 8086:8080 --network container:tomcat85 --name tomcat`
+
+报错，两个tomcat都是8080，端口冲突，使用alpine验证
+
+`docker run -it --name alpine1 alpine /bin/sh `
+
+`docker run -it --network container:apline1 --name apline2 /bin/sh`
+
+![image-20230323213815548](.\images\image-20230323213815548.png)
+
+### 自定义网络
+
+为了能够直接Ping通服务名
+
+`docker network create xhh_netwokr`
+
+启动两个tomcat：`docker run -d -p 8081:8080 --network xhh_network --name tomcat81 tomcat`,`docker run -d -p 8082:8080 --network xhh_network --name tomcat82 tomcat`
+
+此时ping服务名能够ping通
+
+==自定义网络本身就维护了主机名和ip的对应关系（ip和域名都能通）==
+
+## Docker-compose容器编排
+
+Compose允许用户通过一个单独的==docker-compose.yml==（YAML格式）来定义一组相关联的应用容器为一个项目(project)
+
+### 安装docker compose
+
+- 下载`curl -SL https://github.com/docker/compose/releases/download/v2.16.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose`
+
+- 更改权限`chomd +x /usr/local/bin/docker-compose`
+
+![image-20230324212608123](.\images\image-20230324212608123.png)
+
+### 常用命令
+
+`docker-compose up`：启动所有docker-compose服务
+
+`docker-compose up -d`：==启动所有的docker-compose服务并后台运行==
+
+`docker-compose down`：==停止并删除容器，网络，卷，镜像==
+
+`docker-compose exec yml里面的服务id /bin/bash` ：进入容器实例内部
+
+`docker-compose ps`：展示当前docker-compose编排过的运行的所有容器
+
+`docker-compose logs yml里面的服务Id`： 查看容器输入日志
+
+`docker-compose config`：==检查配置==
+
+`docker-compose config -q`：==检查配置，有问题才有输出==
+
+`docker-compose restart`：重启服务
+
+`docker-compose start`：启动服务
+
+`docker-compose stop`：停止服务
+
+### docker-compose.yml文件
+
+```yaml
+version : "3"
+
+services:
+	microService:
+		image: xhh_docker:1.0
+		container_name: ms01
+		ports:
+			- "6001:6001"
+		volumes:
+			- /app/microService:/data
+		newworks:
+			- xhh_net
+		depends_on:
+			- redis
+			- mysql
+	
+    
+    redis:
+    	image: redis:6.0.8
+    	ports: 
+    		- "6379:6379"
+    	volumes:
+    		- /app/redis/redis.conf:/etc/redis/redis.conf
+    		- /app/redis/data:/data
+    	newworks:
+    		- xhh_net
+    	command: redis-server /etc/redis/redis.conf
+    	
+    mysql:
+   		image: mysql:8.0.18
+   		environment:
+   			MYSQL_ROOT_PASSWORD: 'admin123'
+   			MYSQL_ALLOW_EMPTY_PASSWORD: 'no'
+   			MYSQL_DATABASE: 'db2021'
+   		ports:
+   			- '3306:3306'
+   		volumes:
+   			- /app/mysql/db: /var/lib/mysql
+   			- /app/mysql/conf/my.cnf: /etc/my.cnf
+   			- /app/mysql/init: /docker-entrypoint-initdb.d
+   		network:
+   			- xhh_net
+   		command: --default-authentication-plugin = mysql_native_password # 解决外部无法访问
+   	networks:
+   		xhh_net:
+			
+```
+
+## Portainer可视化
+
+// TODO
+
+## Docker容器监控（CAdvisor+InfluxDB+Granfana）
+
+### CAdvisor
+
+CAdvisor是一个容器资源监控工具，包括容器的内存，CPU，网络IO，磁盘IO等监控，同时提供了一个WEB页面用于查看容器的实时运行状态。CAdvisor默认存储2分钟的数据，而且只是针对单物理机。
+
+CAdvisor功能主要有两点：
+
+- 展示Host和容器两个层次的监控数据
+- 展示历史变化数据
+
+### InfluxDB
+
+InfluxDB是用GO编写的一个开源分布式时序，时间和指标数据库，无需外部依赖
+
+主要功能：
+
+- 基于时间序列，支持与时间有关的相关函数（如最大、最小、求和等）
+- 可度量性：你可以实时对大量数据进行计算
+- 基于事件：它支持任意的是事件数据
+
+### Granfana
+
+是一个开源的数据监控分析可视化平台
+
+主要特性：
+
+- 灵活丰富的图形化选项

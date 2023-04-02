@@ -1,4 +1,7 @@
+
+
 # SpringCloud
+
 SpringBoot和SpringCloud关系：
 - SpringBoot专注于快速方便的开发单个个体微服务
 - SpringCloud是关注全局的微服务协调整理治理框架，它将SpringBoot开发的一个个单体微服务整合并管理起来，为各个微服务之间提供：配置管理，服务发现，断路由，路由，微代理，事件总线，全局锁，决策竞选，分布式会话等集成服务
@@ -542,7 +545,7 @@ public class DeptConsumerDashboard_9001 {
         return  registrationBean;
     }
 ```
-![](/images/dashboard.jpg)
+![](./images/dashboard.jpg)
 # Zuul路由网关
 Zuul包含了对请求的路由和过滤两个主要的功能：其中路由功能负责将外部请求转发到具体的微服务上，是实现外部访问同一入口的基础，而过滤器功能则负责对请求的处理过程进行干预，是实现请求校验，服务聚合等功能的基础。Zuul和Eureka进行整合，将Zuul自身注册成为Eureka服务治理下的应用，同时从Eureka中获得其他微服务的消息，即以后的访问微服务都是通过Zuul跳转后获得
 - 创建`springcloud-zuul-9527`项目

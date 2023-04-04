@@ -33,3 +33,28 @@
 ### 非关系型数据库（非RDBMS）
 
 非关系型数据库，可以看成传统关系型数据库的功能==阉割版本==，基于键值对存储数据，不需要经过SQL层的解析，==性能非常高==。
+
+## MySQL的编码设置
+
+MySQL5.7中，创建表默认编码`latin1`，表中插入中文数据存在问题
+
+> 解决方式
+
+步骤1：查看编码命令
+
+```sql
+show variables like 'character_%';
+show variables like 'collation_%';  # 字符集的比较规则
+```
+
+步骤2：修改mysql的数据目录下的`my.ini`配置文件
+
+```mysql
+[mysql] #在大概63行左右，在其下添加
+default-character-set=utf8 #默认字符集
+
+[mysqld] # 大概76行左右
+# 注：utf8mb4支持emoji
+character-set-server=utf8
+collation-server=utf8_general_ci
+```

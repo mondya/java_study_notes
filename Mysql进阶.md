@@ -94,13 +94,13 @@ select 'user表', user.* from user;
 
 ### 模糊查询
 
-在模糊查询时需要注意特殊字符`_`，`%`，这两个在模糊查询时需要使用转义字符`\`
+在模糊查询时需要注意特殊字符`_`，`%`，这两个在模糊查询时需要使用转义字符`\`，输入单个_,%会被转义成本身，不会当作通配符
 
 ```mysql
 select * from user where name like '%\${searchValue}%';
 ```
 
-或者使用ESCAPE
+或者使用ESCAPE，作用是声明ESCAPE之后的字符不作为通配符使用
 
 ```mysql
 select * from user where name like '%/${searchValue}%' ESCAPE '/';
@@ -116,3 +116,16 @@ select * from user where instr(name, '_');
 #### 正则表达式（REGEXP \ RLIKE）
 
 // todo，了解即可
+
+### 逻辑运算符
+
+#### XOR（非运算）
+
+只要其中任何一个操作数据为null时，结果返回null;如果对于非null的操作数，如果两个操作数都是非0或者都是0，则返回值为0;如果一个为0，另一个为非0值，回值为1
+
+```mysql
+where a > 1 XOR b < 3; # 查询 a > 1 并且不满足 b < 3 的数据或者查询 b < 3 但是不满足 a > 1 的数据
+```
+
+
+

@@ -127,5 +127,27 @@ select * from user where instr(name, '_');
 where a > 1 XOR b < 3; # 查询 a > 1 并且不满足 b < 3 的数据或者查询 b < 3 但是不满足 a > 1 的数据
 ```
 
+### SQL标准
 
+SQL有两个主要的标准，分别是`SQL92`和`SQL99`。一般来说92的形式更简单，但是写的SQL语句会比较长，可读性较差。而99相比于92来说语法更加复杂，但是可读性更强。
 
+## 多表查询的分类
+
+### 等值连接与非等值连接
+
+非等值连接
+
+```mysql
+select e.last_name, e.salary, j.grade_level from employees e, job_grades j
+where e.salary between j.lowest_sal and j.highest_sal;
+```
+
+### 自连接与非自连接
+
+```mysql
+select emp.employee_id, emp.last_name, mgr.employee_id, mgr.last_name
+from employees emp, employees mgr
+where emp.manager_id = mgr.employee_id;
+```
+
+### 内连接与外连接

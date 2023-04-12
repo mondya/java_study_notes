@@ -151,3 +151,44 @@ where emp.manager_id = mgr.employee_id;
 ```
 
 ### 内连接与外连接
+
+MySQL不支持SQL92语法中外连接的写法
+
+```sql
+select last_name, department_name from employees e, department d
+where e.department_id = d.department_id(+);
+```
+
+### 满外连接
+
+MySQL不支持这种形式的满外连接
+
+```sql
+select last_name, department_name from employees e FULL OUTER JOIN department d
+on e.department_id = d.department_id;
+```
+
+### UNION的使用
+
+==合并查询结果==：利用UNION关键字，可以给出多条select语句，并将他们的结果组合成单个结果集。合并时，两个表对应的列数和类型必须相同，并且相互对应。各个select语句之间使用UNION或者UNION ALL关键字分割。
+
+==UNION==：操作符返回两个查询的结果集的并集，去除重复记录
+
+==UNION ALL==：操作符返回两个查询的结果集的并集。对于两个结果集的重复部分，不去重。
+
+注意：执行UNION ALL语句时所需要的资源比UNION语句少。如果明确知道合并数据后的结果数据不存在重复数据，或者不需要去重，则尽量使用UNION ALL语句，以提高查询的效率。
+
+### 7种JOIN图解
+
+![image-20230412220839305](.\images\image-20230412220839305.png)
+
+其中FULL OUTER JOIN 在MySQL中不支持，需要结合UNION查询
+
+> 图6可以看作是图1 + 图5的结合
+
+```sql
+select a, b from a left join b on a.key = b.key
+union all
+select a, b from a right join b on a.key = b.key where a.key is null
+```
+

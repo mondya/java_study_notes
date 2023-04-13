@@ -192,3 +192,6 @@ union all
 select a, b from a right join b on a.key = b.key where a.key is null
 ```
 
+### NATURAL JOIN
+
+自然连接：自动查询两张连接表中**所有相同字段**，然后进行等值连接。

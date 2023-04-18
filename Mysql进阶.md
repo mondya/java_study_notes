@@ -195,3 +195,13 @@ select a, b from a right join b on a.key = b.key where a.key is null
 ### NATURAL JOIN
 
 自然连接：自动查询两张连接表中**所有相同字段**，然后进行等值连接。
+
+## 日期和时间函数
+
+### 日期与时间戳的转换
+
+`UNIX_TIMESTAMP()`：以UNIX时间戳的形式返回当前时间。
+
+`UNIX_TIMESTAMP(date)`：将时间date以UNIX时间戳的形式返回。
+
+`FROM_UNIXTIME(timestamp)`：将UNIX时间戳的时间转换为普通格式的时间。

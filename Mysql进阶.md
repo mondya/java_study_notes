@@ -205,3 +205,13 @@ select a, b from a right join b on a.key = b.key where a.key is null
 `UNIX_TIMESTAMP(date)`：将时间date以UNIX时间戳的形式返回。
 
 `FROM_UNIXTIME(timestamp)`：将UNIX时间戳的时间转换为普通格式的时间。
+
+### 流程处理函数
+
+`IF(value, value1, value2)`：如果value的值为TRUE，返回value1,否则返回value2
+
+`IFNULL(value1, value2)`：如果value1不为null，返回value1，否则返回value2
+
+`CASE WHEN 条件1 THEN 结果1 WHEN 条件2 THEN 结果2 ... END`：相当于if...else if ...else...
+
+`CASE expr WHEN 常量1 THEN 值1 WHEN 常量2 THEN 值2 ... END`：相当于switch...case...

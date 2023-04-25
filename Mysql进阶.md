@@ -215,3 +215,23 @@ select a, b from a right join b on a.key = b.key where a.key is null
 `CASE WHEN 条件1 THEN 结果1 WHEN 条件2 THEN 结果2 ...[ELSE 结果3] END`：相当于if...else if ...else...
 
 `CASE expr WHEN 常量1 THEN 值1 WHEN 常量2 THEN 值2 ... [ELSE 结果3] END`：相当于switch...case...
+
+## SQL的执行原理
+
+SELECT是先执行FROM这布。在这个阶段，如果是多张表联查，还会经历下面的几个步骤：
+
+1.首先通过CROSS JOIN求笛卡尔积，相当于得到虚拟表vt1-1;
+
+2.通过ON进行筛选，在虚拟表vt1-1的基础上进行筛选，得到虚拟表vt1-2;
+
+3。添加外部行。如果我们使用的是左连接或者右连接或者全连接，就会涉及到外部行，也就是在虚拟表vt1-2的基础上增加外部行，得到虚拟表vt1-3。
+
+如果操作两张以上的表，还会重复以上的步骤，直到所有的表都被处理完为止。
+
+当我们查询到了数据表的原始数据vt1，就可以在此进行`WHERE`阶段，得到vt2。
+
+然后进入`GROUP BY`和`HAVING`阶段，得到vt3,vt4。
+
+当完成条件筛选部分后，就可以筛选表中提取的字段，也就是进入到`SELECT DISTINCT`阶段
+
+最终进行`ORDER BY`和`LIMIT`

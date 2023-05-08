@@ -238,6 +238,8 @@ SELECT是先执行FROM这布。在这个阶段，如果是多张表联查，还�
 
 ## 子查询
 
+### 在SELECT中，除了GROUP BY 和LIMIT之外，其他位置都可以声明子查询
+
 ### 单行子查询（子查询中的值只能有一个）
 
 | 操作符 | 含义     |
@@ -273,3 +275,58 @@ WHERE employee_id NOT IN (SELECT manager_id FROM employees);
 执行流程：如果子查询的执行依赖于外部查询，通常情况下都是因为子查询中的表用到了外部的表，并进行了条件关联，因此每执行一次外部查询，子查询都要重新计算一次，这样的子查询就称为==关联子查询==
 
 ![image-20230504222421672](.\images\image-20230504222421672.png)
+
+### 子查询举例
+
+```sql
+# 查询平均工资最高的Job信息，employees表
+
+# 方式1 多层子查询
+select *
+from jobs
+where job_id = (select job_id
+                from employees
+                group by job_id
+                having AVG(salary) = (
+                    # 查询最高工资 
+                    select max(avg_sal)
+                    from (
+                             # 查询每组job_id的平均工资
+                             select AVG(salary) avg_sal
+                             from employees
+                             group by job_id) t_job_avg_sal));
+
+
+# 方式2 使用all
+select *
+from jobs
+where job_id = (select job_id
+                from employess
+                group by job_id
+                having avg(salary) >= all (select AVG(salary)
+                                           from employess
+                                           group by job_id));
+                                           
+# 方式3  使用limit
+select *
+from jobs
+where job_id = (select job_id
+                from employess
+                group by job_id
+                having avg(salary) = (select AVG(salary) avg_sal
+                                           from employess
+                                           group by job_id
+                                     	   order by avg_sal DESC 
+                                     	   limit 0,1));
+
+# 方式4 联表查询
+select j.*
+from jobs j,
+     (select job_id, avg(salary) avg_sal
+      from employess
+      group by job_id
+      order by avg_sal DESC
+      limit 0,1) t_avg_salary
+where j.id = avg_salary.job_id;
+```
+

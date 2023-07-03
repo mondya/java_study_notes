@@ -408,3 +408,87 @@ begin
 end
 ```
 
+示例
+
+```sql
+# 存储过程的创建
+delimiter $;
+create procedure select_all_user()
+begin 
+    select * from user;
+end $;
+delimiter ;
+
+# 存储过程的调用
+call select_all_user();
+
+# 输出参数到ms
+delimiter $;
+create procedure select_all_user_ms(OUT ms varchar(255))
+begin 
+    select name into ms from user where id = 1;
+end $;
+delimiter ;
+
+call select_all_user_ms(@ms);
+select @ms;
+
+# 根据id查询指定的字段
+delimiter $;
+create procedure select_user_by_id(in id_key bigint )
+begin 
+    select id , name, date_created, teacher_id from user where id = id_key;
+end $;
+delimiter ;
+
+select * from user where id = 11;
+call select_user_by_id(11);
+
+# 根据id查询指定字段，并且输出
+DELIMITER $$
+CREATE PROCEDURE `get_user_by_id`(IN id_key BIGINT, OUT out_name VARCHAR(255), OUT out_date_created DATETIME, OUT out_teacher_id BIGINT)
+BEGIN
+    SELECT name, date_created, teacher_id INTO out_name, out_date_created, out_teacher_id FROM user WHERE id = id_key;
+END$$
+DELIMITER ;
+
+CALL get_user_by_id(11, @name, @date_created, @teacher_id);
+SELECT @name, @date_created, @teacher_id;
+```
+
+## 存储函数
+
+```sql
+create function 函数名(参数名 参数类型, ...)
+returns 返回值类型
+[characteristics ...]
+
+BEGIN
+	函数体 #函数体中肯定有 return 语句
+END
+```
+
+```sql
+# 存储函数
+delimiter //
+create function get_user()
+returns varchar(255)
+    deterministic 
+    contains sql 
+    reads sql data 
+begin
+    return (select name from user where id = 1);
+end //
+
+# 调用存储函数
+select get_user();
+```
+
+## 对比存储函数和存储过程
+
+|          | 关键字    | 调用语法        | 返回值              | 应用场景                         |
+| -------- | --------- | --------------- | ------------------- | -------------------------------- |
+| 存储过程 | PROCEDURE | CALL 存储过程() | 理解为有0个或者多个 | 一般用于更新                     |
+| 存储函数 | FUNCTION  | SELECT 函数()   | 只能是一个          | 一般用于查询结果为一个值并返回时 |
+
+另外，==存储函数可以放在查询语句中使用，存储过程不行==。反之，存储过程的功能更加强大，包括能够执行对表的操作（比如创建表，删除表等）和事务操作，这些功能是存储函数不具备的。

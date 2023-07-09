@@ -492,3 +492,47 @@ select get_user();
 | 存储函数 | FUNCTION  | SELECT 函数()   | 只能是一个          | 一般用于查询结果为一个值并返回时 |
 
 另外，==存储函数可以放在查询语句中使用，存储过程不行==。反之，存储过程的功能更加强大，包括能够执行对表的操作（比如创建表，删除表等）和事务操作，这些功能是存储函数不具备的。
+
+## 触发器
+
+创建触发器：
+
+```sql
+create trigger 触发器名称
+{BEFORE|AFTER} {INSTERT|UPATE|DELETE} ON 表名
+FOR EACH ROW
+触发器执行的语句块;
+```
+
+## 窗口函数
+
+在需要用到分组统计的结果对每一条记录进行计算的场景下，使用窗口函数更好。
+
+| 函数分类 | 函数               | 函数说明                                      |
+| -------- | ------------------ | --------------------------------------------- |
+| 序号函数 | ROW_NUMBER()       | 顺序排序                                      |
+|          | RANK()             | 并列排序，会跳过重复的序号，比如序号为1，1，3 |
+|          | DENSE_RANK()       | 并列排序，不会跳过重复的序号，比如序号1，1，2 |
+| 分布函数 | PERCENT_RANK()     | 等级值百分比                                  |
+|          | CUME_DIST()        | 累计分布值                                    |
+| 前后函数 | LAG(expr, n)       | 返回当前行的前n行的expr的值                   |
+|          | LEAD(expr, n)      | 返回当前行的后n行的expr的值                   |
+| 首位函数 | FIRST_VALUE(expr)  | 返回第一个expr的值                            |
+|          | LAST_VALUE(expr)   | 返回最后一个expr的值                          |
+| 其他函数 | NTH_VALUE(expr, n) | 返回第n个expr的值                             |
+|          | NTILE(n)           | 将分区中的有序数据分为n个桶，记录桶编号       |
+
+### 语法结构
+
+窗口函数的语法结构是：
+
+```sql
+函数 OVER([PARTITION BY 字段名 ORDER BY 字段名 ASC|DESC])
+```
+
+或者是：
+
+```sql
+函数 OVER 窗口名 _WINDOW 窗口名 AS ([PARTITION BY 字段名 ORDER BY 字段名 ASC|DESC])
+```
+

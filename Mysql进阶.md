@@ -536,3 +536,41 @@ FOR EACH ROW
 函数 OVER 窗口名 _WINDOW 窗口名 AS ([PARTITION BY 字段名 ORDER BY 字段名 ASC|DESC])
 ```
 
+## MySQL5更改默认字符集
+
+默认路径：
+
+```git
+# 如果是docker启动并且指定了配置文件的挂载路径，则在挂载目录下新建my.cnf文件
+vim /etc/my.cnf
+```
+
+在my.cnf文件中添加配置（注意点：如果数据库在更改字符集之前就已经存在，则此更改不会对旧数据库生效）
+
+```sql
+character_set_server=utf8
+```
+
+```cnf
+[mysqld]
+## 设置servier_id，同一局域网中需要唯一
+server_id=101
+## 指定不需要同步的数据库名称
+binlog-ignore-db=mysql
+## 开启二进制日志功能
+log-bin=mall-mysql-bin
+## 设置二进制日志使用内存大小
+binlog_cache_size=1M
+## 设置使用的二进制日志格式(mixed,statement,row)
+binlog_format=mixed
+## 二进制日志过期清理时间，默认为0，表示不自动清理
+expire_logs_days = 7
+## 跳过主从复制中遇到的所有错误或指定类型的错误，避免slave端复制中断
+## 如1062错误：是指一些主键重复，1032错误指主从数据库数据不一致
+slave_skip_errors=1062
+charater_set_server=utf8
+```
+
+重启mysql
+
+![image-20230711215942506](.\images\image-20230711215942506.png)

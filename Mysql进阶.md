@@ -542,13 +542,15 @@ FOR EACH ROW
 
 ```git
 # 如果是docker启动并且指定了配置文件的挂载路径，则在挂载目录下新建my.cnf文件
+# 否则，如下
 vim /etc/my.cnf
 ```
 
 在my.cnf文件中添加配置（注意点：如果数据库在更改字符集之前就已经存在，则此更改不会对旧数据库生效）
 
 ```sql
-character_set_server=utf8
+character_set_server=utf8mb4
+collation_server=utf8mb4_unicode_ci
 ```
 
 ```cnf
@@ -568,9 +570,140 @@ expire_logs_days = 7
 ## 跳过主从复制中遇到的所有错误或指定类型的错误，避免slave端复制中断
 ## 如1062错误：是指一些主键重复，1032错误指主从数据库数据不一致
 slave_skip_errors=1062
-charater_set_server=utf8
+charater_set_server=utf8mb4
+collation_server=utf8mb4_unicode_ci
 ```
 
 重启mysql
 
 ![image-20230711215942506](.\images\image-20230711215942506.png)
+
+### utf8和utf8mb4
+
+`utf8`：又叫utf8mb3，被阉割过的utf8字符集，只使用1-3个字节表示字符
+
+`utf8mb4`：正宗的utf8字符集，使用1-4个字节表示字符（能够处理表情符号）
+
+## 字符集的比较规则
+
+```sql
+# mysql5和mysql8在字符集的比较上有区别
+show character set;
+```
+
+| Charset  | Description                     | Default collation     | Maxlen |
+| :------- | :------------------------------ | :-------------------- | :----- |
+| big5     | Big5 Traditional Chinese        | big5\_chinese\_ci     | 2      |
+| dec8     | DEC West European               | dec8\_swedish\_ci     | 1      |
+| cp850    | DOS West European               | cp850\_general\_ci    | 1      |
+| hp8      | HP West European                | hp8\_english\_ci      | 1      |
+| koi8r    | KOI8-R Relcom Russian           | koi8r\_general\_ci    | 1      |
+| latin1   | cp1252 West European            | latin1\_swedish\_ci   | 1      |
+| latin2   | ISO 8859-2 Central European     | latin2\_general\_ci   | 1      |
+| swe7     | 7bit Swedish                    | swe7\_swedish\_ci     | 1      |
+| ascii    | US ASCII                        | ascii\_general\_ci    | 1      |
+| ujis     | EUC-JP Japanese                 | ujis\_japanese\_ci    | 3      |
+| sjis     | Shift-JIS Japanese              | sjis\_japanese\_ci    | 2      |
+| hebrew   | ISO 8859-8 Hebrew               | hebrew\_general\_ci   | 1      |
+| tis620   | TIS620 Thai                     | tis620\_thai\_ci      | 1      |
+| euckr    | EUC-KR Korean                   | euckr\_korean\_ci     | 2      |
+| koi8u    | KOI8-U Ukrainian                | koi8u\_general\_ci    | 1      |
+| gb2312   | GB2312 Simplified Chinese       | gb2312\_chinese\_ci   | 2      |
+| greek    | ISO 8859-7 Greek                | greek\_general\_ci    | 1      |
+| cp1250   | Windows Central European        | cp1250\_general\_ci   | 1      |
+| gbk      | GBK Simplified Chinese          | gbk\_chinese\_ci      | 2      |
+| latin5   | ISO 8859-9 Turkish              | latin5\_turkish\_ci   | 1      |
+| armscii8 | ARMSCII-8 Armenian              | armscii8\_general\_ci | 1      |
+| utf8     | UTF-8 Unicode                   | utf8\_general\_ci     | 3      |
+| ucs2     | UCS-2 Unicode                   | ucs2\_general\_ci     | 2      |
+| cp866    | DOS Russian                     | cp866\_general\_ci    | 1      |
+| keybcs2  | DOS Kamenicky Czech-Slovak      | keybcs2\_general\_ci  | 1      |
+| macce    | Mac Central European            | macce\_general\_ci    | 1      |
+| macroman | Mac West European               | macroman\_general\_ci | 1      |
+| cp852    | DOS Central European            | cp852\_general\_ci    | 1      |
+| latin7   | ISO 8859-13 Baltic              | latin7\_general\_ci   | 1      |
+| utf8mb4  | UTF-8 Unicode                   | utf8mb4\_general\_ci  | 4      |
+| cp1251   | Windows Cyrillic                | cp1251\_general\_ci   | 1      |
+| utf16    | UTF-16 Unicode                  | utf16\_general\_ci    | 4      |
+| utf16le  | UTF-16LE Unicode                | utf16le\_general\_ci  | 4      |
+| cp1256   | Windows Arabic                  | cp1256\_general\_ci   | 1      |
+| cp1257   | Windows Baltic                  | cp1257\_general\_ci   | 1      |
+| utf32    | UTF-32 Unicode                  | utf32\_general\_ci    | 4      |
+| binary   | Binary pseudo charset           | binary                | 1      |
+| geostd8  | GEOSTD8 Georgian                | geostd8\_general\_ci  | 1      |
+| cp932    | SJIS for Windows Japanese       | cp932\_japanese\_ci   | 2      |
+| eucjpms  | UJIS for Windows Japanese       | eucjpms\_japanese\_ci | 3      |
+| gb18030  | China National Standard GB18030 | gb18030\_chinese\_ci  | 4      |
+
+mysql共有41中字符集，其中Default collation列表示这种字符集中一种默认的比较规则，里面包含着该比较规则主要作用于哪种语言，比如unf8_polish_ci表示以波兰语的规则比较，utf8_spanish_ci是以西班牙语的规则比较，utf8_general_ci是一种通用的比较规则。
+
+后缀表示该比较是否区分语言中重音、大小写。具体如下：
+
+| 后缀 | 英文释义           | 描述             |
+| ---- | ------------------ | ---------------- |
+| _ai  | accent insensitive | 不区分重音       |
+| _as  | accent sensitive   | 区分重音         |
+| _ci  | case insensitive   | 不区分大小写     |
+| _cs  | case sensitive     | 区分大小写       |
+| _bin | binary             | 以二进制方式比较 |
+
+最后一列Maxlen，它代表该种字符集表示一个字符最多需要几个字节
+
+## 说明
+
+### utf8_unicode_ci和utf8_general_ci
+
+utf8_unicode_ci和utf8_general_ci对中、英文来说没有实质的区别。
+
+utf8_general_ci校对数据快，但准确度稍差。
+
+utf8_unicode_ci准确度高，但是校对数据稍慢。
+
+一般情况下，使用utf8_general_ci就足够了，但如果你的应用有德语、法语、或者俄语，请一定要用utf8_unicode_ci
+
+### 请求到响应过程中字符集的变化
+
+从客户端发往服务器的请求本质上就是一个字符串，服务器向客户端返回的结果本质上也是一个字符串，而字符串是使用某种字符集编码的二进制数据。这个字符串，从请求到返回结果的过程中伴随着多次字符集的转化，在这个过程中会用到3个系统变量：
+
+| 系统变量                 | 描述                                                         |
+| ------------------------ | ------------------------------------------------------------ |
+| character_set_client     | 服务器解码请求时使用的字符集                                 |
+| character_set_connection | 服务器处理请求时会把请求字符串从character_set_client转为character_set_connection |
+| character_set_results    | 服务器向客户端返回数据时使用的字符集                         |
+
+举例：
+
+```sql
+set charater_set_connection = gbk;
+```
+
+字段s采用gbk字符集
+
+```sql
+select * from t where s = '我';
+```
+
+- 客户端发送请求所用的字符集，一般情况下客户端所用的字符集和当前操作系统一致（类unix系统所用的是utf8，windows使用的是gbk）。提示：如果使用了可视化工具，则和工具的字符编码有关。
+
+  当客户端使用的是utf8字符集，字符`我`在发送给服务器的请求中的字节形式是`OxE68891`
+
+- 服务器接收到客户端发送来的请求其实是一串二进制的字节，它会认为这串字节采用的字符集是`charater_set_client`(utf8)，解码得到`我`，然后把这串字节转换为`character_set_connection`字符集编码的字符(gbk)，得到的结果为`0xCED2`
+- 因为表t的列col采用的是gbk字符集，与`character_set_connection`一致，所以直接到表中找字节值为`0xCED2`的记录。
+- 找到`0xCED2`的值，col列是采用gbk进行编码的，所以首先会将这个字节串使用gbk进行解码，得到`我`，然后把这个字符串使用`character_set_results`代表的字符集(utf8)进行编码，得到新字节`0xE68891`，然后发送给客户端。
+- 客户端使用utf8解码，得到结果`我`
+
+![image-20230712220156025](.\images\image-20230712220156025.png)
+
+### 全局设置字符集
+
+```sql
+set names utf8;
+```
+
+或者在配置文件中加上
+
+```cnf
+[client]
+default_character_set=utf8
+```
+

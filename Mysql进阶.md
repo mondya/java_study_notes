@@ -797,3 +797,82 @@ test.MYI 存储索引（MYIndex）
 [server]
 innodb_file_per_table=0 # 0:代表使用系统表空间 1：代表使用独立表空间
 ```
+
+## 登入MySQL服务器
+
+```mysql
+mysql -h hostname|hostIp -P port -u username -p DataBaseName -e 'SQL语句'
+```
+
+`-h`：后面接主机名或者主机ip,hostname为主机，hostIp为主机IP
+
+`-P`：后面接MySQL服务的端口，通过该参数连接到指定的端口。MySQL服务的默认端口是3306，不使用该参数时默认连接3306，port表示具体的端口号
+
+`-u`：接用户名，username表示用户名
+
+`-p`：提示输入密码
+
+`DataBaseName`：指明登入到哪个数据库中，如果没有这个参数，就会直接登入到MySQL数据库中，然后使用user命令来选择数据库
+
+`-e`：后面可以直接加SQL语句，登入mysql服务器以后即可执行这个mysql语句，然后退出MySQL服务器。
+
+```mysql
+mysql -uroot -p -hlocalhost -P3306 mysql -e "select host,user from user"
+```
+
+## 创建用户
+
+使用==CREATE USER==语句创建用户
+
+```mysql
+# []表示可选项
+CREATE USER 用户名[@'主机host'] [IDENTIFIED BY '密码'] 
+```
+
+### 更改当前用户密码
+
+```mysql
+# 修改当前用户的密码，mysql5.7有效
+SET PASSWORD = PASSWORD('admin123')
+```
+
+推荐使用==ALTER USER==或者==SET==语句
+
+```mysql
+ALTER USER USER() IDENTIFIED BY 'admin123';
+
+# 或者
+SET PASSWORD = 'admin123';
+```
+
+### 更改其他用户密码
+
+```mysql
+
+ALTER USER '用户名'[@'host'] IDENTIFIED BY 'new_password';
+# 或者
+SET PASSWORD FOR '用户名'@'hostname' = 'new_password'               
+```
+
+### 手动设置密码过期
+
+设置用户的密码立即过期：
+
+```mysql
+ALTER USER '用户名' PASSWORD EXPIRE;
+```
+
+- 使用sql语句更改该变量的值并且持久化
+
+```mysql
+SET PERSIST default_password_lifetime = 180; # 建立全局策略，设置密码每隔180天过期
+```
+
+- 配置my.cnf
+
+```mysql
+[mysqld]
+default_password_lifetime=180
+```
+
+![image-20230714234027198](.\images\image-20230714234027198.png)

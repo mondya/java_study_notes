@@ -876,3 +876,63 @@ default_password_lifetime=180
 ```
 
 ![image-20230714234027198](.\images\image-20230714234027198.png)
+
+## 创建角色
+
+// 百度吧，和创建用户差不多
+
+## 权限管理
+
+```mysql
+# 查看MySQL服务器支持的权限列表
+show privileges;
+# 查看用户的角色
+show grants for 用户名;
+```
+
+### 授予权限
+
+授权用户的方式有两种，分别是通过把==角色赋予用户给用户授权==和==直接给用户授权==
+
+命令：
+
+```mysql
+GRANT 权限1,权限2,...权限n ON 数据库名称.表名称 TO 用户名@用户地址 [IDENTIFIED BY '密码']
+# 全部权限 Grant all privileges ON ...
+```
+
+### 收回权限
+
+```mysql
+REVOKE 权限1,权限2...权限n ON 数据库名称.表名称 FROM 用户名@用户地址
+```
+
+### 权限表
+
+MySQL服务器通过`权限表`来==控制用户对数据库的访问==，权限表存放在mysql数据库中，MySQL数据库系统会根据这些权限表的内容来为每个用户赋予相应的权限。这些权限表中最重要的是user表，db表，除此之外还有table-priv表，column_priv表和proc_priv表等。
+
+## SQL执行流程
+
+![image-20230716185631462](.\images\image-20230716185631462.png)
+
+### MySQL查询流程
+
+- 查询缓存：Server如果在查询缓存中发现了这条SQL语句，就会直接把结果返回给客户端。MySQL8之后已经抛弃此功能。
+
+my.cnf配置：
+
+```mysql
+# query_cache_type：0代表关闭查询缓存，1代表开启，2代表demand(按需使用)
+query_cache_type = 2
+```
+
+```mysql
+select SQL_CACHE * from test where id = 5;
+select SQL_NO_CACHE * from test where id = 5;
+```
+
+- 解析器：在解析器中对SQL语句进行语法分析，语义分析
+
+- 优化器：在优化器中会确定SQL语句的执行路径，比如是根据全表索引还是根据索引检索等。==一条查询可以有很多种执行方式，最后都返回相同的结果，优化器的作用就是找到其中最好的执行计划==
+
+- 执行器：执行SQL查询并返回结果

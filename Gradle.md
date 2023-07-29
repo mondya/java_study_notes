@@ -97,6 +97,10 @@ IDEA配置gradle user home
 
 ![image-20230212001048310](.\images\image-20230212001048310.png)
 
+## gradle_home和gradle_user_home的区别
+
+![image-20230727211011328](.\images\image-20230727211011328.png)
+
 ## Wrapper包装器
 
 Gradle Wrapper实际上就是对Gradle的一层包装，用于解决实际开发中可能遇到的不同的项目需要不同版本的Gradle问题。例如，把自己的代码共享给其他人使用，可能出现的情况：

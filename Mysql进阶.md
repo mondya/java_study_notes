@@ -1199,3 +1199,116 @@ create [索引类型] index student_name_id_index
 select * from papers where match(title, content) against ('查询字符串');
 ```
 
+## MySQL8.0索引新特性
+
+### 支持降序索引
+
+降序索引以降序存储键值。MySQL在8版本之前创建的仍然是升序索引，使用时进行反向扫描，这大大降低了数据库的效率。在某些场景，降序索引意义重大，例如，如果一个查询需要对多个字段进行排序，且字段排序要求不一致，那么使用降序索引将会避免数据库使用额外的文件排序操作，从而提高性能。
+
+### 隐藏索引
+
+在MySQL5版本之前，只能通过显示的方式删除索引，在表数据量很大时，会耗费过多资源。从8开始支持隐藏索引。==注意：主键不能设置为隐藏索引，当表中没有主键时，表中第一个唯一非空索引会称为隐式主键，也不能设置为隐藏索引==。通过`VISIBLE`或者`INVISIBLE`关键字设置索引的可见性。
+
+```mysql
+alter table 表名 alter index 索引名称 invisible| visible;
+```
+
+## 索引的设计原则
+
+### 数据准备
+
+```mysql
+# 建表
+create table student_info(
+    id int(11) not null auto_increment,
+    student_id int not null,
+    name varchar(20) default null,
+    course_id int default null,
+    class_id int default null,
+    create_time datetime default current_timestamp on update current_timestamp,
+    primary key (id)
+) engine=innodb auto_increment = 1 default charset =utf8mb4;
+
+# 函数1：随机字符串
+DELIMITER //
+create function rand_string(n INT)
+returns varchar(255)
+begin 
+    declare chars_str varchar(100) default 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    declare return_str varchar(255) default '';
+    declare i int default 0;
+    while i < n DO
+            set return_str = concat(return_str, substr(chars_str, floor(1+rand() * 52), 1));
+            set i = i + 1;
+        end while;
+    return return_str;
+end //
+delimiter ;
+
+# 函数2：随机数
+delimiter //
+create function rand_num(from_num INT, to_num INT)
+returns int(11)
+begin 
+    declare i int default 0;
+    set i = floor(from_num + rand() * (to_num - from_num + 1));
+        return i;
+end //
+delimiter ;
+
+
+# 存储过程1：创建插入课程表存储的过程
+delimiter //
+create procedure insert_course(max_num INT)
+begin 
+    declare  i int default 0;
+    set autocommit=0;
+    repeat 
+        set i = i + 1;
+        insert into course(course_id, course_name) values (rand_num(10000, 10100), rand_string(6));
+        until i = max_num
+    end repeat ;
+    commit ;
+end //
+delimiter ;
+
+# 存储过程2：创建插入学生信息表存储过程
+delimiter //
+create procedure insert_stu(max_num INT)
+begin
+    declare i int default 0;
+    set autocommit = 0;
+    repeat
+        insert into student_info(course_id, class_id, student_id, name)
+        values (rand_num(10000, 10100), rand_num(10000, 10200), rand_num(1, 200000), rand_string(6));
+    until i = max_num
+        end repeat;
+    commit;
+end //
+delimiter ;
+
+
+call insert_course(100);
+call insert_stu(1000000);
+```
+
+### 适合创建索引的情况
+
+#### 1.字段的数值有唯一性的限制
+
+业务上具有唯一特性的字段，即使是组合字段，也必须建成唯一索引。
+
+#### 2.频繁作为WHERE查询条件的字段
+
+#### 3.经常GROUP BY和ORDER BY的字段
+
+如果group by和order by同时出现，应该建立联合索引，并且以group by字段顺序作为建立索引的顺序，其中如果order by字段倒序，在建立联合索引时也为排序字段建立倒序索引。
+
+#### 4.UPDATE,DELETE的WHERE条件列
+
+#### 5.DISTINCT字段需要创建索引
+
+#### 6.多表JOIN连接操作时，创建索引注意事项
+
+首先，==连表的数量不要操作3张==，因为每增加一张表就相当于增加了一次嵌套的循环，数量级增长会非常快，严重影响查询效率。其次，对==where条件创建索引==，最后，==对用于连接的字段创建索引==，并且该字段在多张表的类型一致。
+

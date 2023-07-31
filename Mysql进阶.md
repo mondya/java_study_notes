@@ -49,7 +49,7 @@ show variables like 'collation_%';  # 字符集的比较规则
 
 步骤2：修改mysql的数据目录下的`my.ini`配置文件
 
-```mysql
+```properties
 [mysql] #在大概63行左右，在其下添加
 default-character-set=utf8 #默认字符集
 
@@ -548,12 +548,12 @@ vim /etc/my.cnf
 
 在my.cnf文件中添加配置（注意点：如果数据库在更改字符集之前就已经存在，则此更改不会对旧数据库生效）
 
-```sql
+```properties
 character_set_server=utf8mb4
 collation_server=utf8mb4_unicode_ci
 ```
 
-```cnf
+```properties
 [mysqld]
 ## 设置servier_id，同一局域网中需要唯一
 server_id=101
@@ -704,7 +704,7 @@ set names utf8;
 
 或者在配置文件中加上
 
-```cnf
+```properties
 [client]
 default_character_set=utf8
 ```
@@ -768,7 +768,7 @@ find / -name mysql
 
 存储数据分为==**系统表空间**==：默认情况下，InnoDB会在数据目录下创建一个名为`ibdata1`，大小为`12M`（自扩展文件，大小会自动改变）
 
-```yaml
+```properties
 [server]
 innodb_data_file_path = data1:512M;data2:512M;autoextend
 ```
@@ -793,7 +793,7 @@ test.MYI 存储索引（MYIndex）
 
 ### 系统表空间和独立表空间的设置
 
-```yaml
+```properties
 [server]
 innodb_file_per_table=0 # 0:代表使用系统表空间 1：代表使用独立表空间
 ```
@@ -870,7 +870,7 @@ SET PERSIST default_password_lifetime = 180; # 建立全局策略，设置密码
 
 - 配置my.cnf
 
-```mysql
+```properties
 [mysqld]
 default_password_lifetime=180
 ```
@@ -921,7 +921,7 @@ MySQL服务器通过`权限表`来==控制用户对数据库的访问==，权限
 
 my.cnf配置：
 
-```mysql
+```properties
 # query_cache_type：0代表关闭查询缓存，1代表开启，2代表demand(按需使用)
 query_cache_type = 2
 ```
@@ -1382,4 +1382,56 @@ count(distinct left(列名,索引长度)) / count(*)
 - ==重复索引：==比如在主键id又创建了普通索引（主键本身存在聚簇索引）
 
 ## 性能分析
+
+```properties
+[mysqld]
+slow_query_log=ON #开启慢查询日志
+slow_query_log_file=/var/lib/mysql/xxx-slow.log #慢日志的目录和文件名信息
+long_query_time=3 #设置慢查询的阈值为3秒，超出此设定值的SQL即被记录到慢日志文件中
+log_output=FILE
+min_examined_row_limit=0 #默认为0，表示查询扫描过的最少记录数，即查询超过时间阈值并且返回的表行数大于此设定值则记录慢日志
+```
+
+### 慢查询日志分析工具：mysqldumpslow
+
+```sh
+# -s：排序, t:query_time; -t:返回前3条数据 ; 慢日志的文件名
+mysqldumpslow -s t -t 3 /var/lib/mysql/xxx-slow.log
+```
+
+### 查看SQL执行的成本：SHOW PROFILE
+
+用于分析当前会话中SQL都做了什么，执行的资源消耗情况，==默认情况下处于关闭状态==。
+
+```mysql
+# 开启
+set profiling = 'ON'
+
+# 查询倒数第2条sql的执行情况
+show profile [cpu,block io for query 2];
+```
+
+show profile的常用查询参数：
+
+`ALL`：显示所有的开销信息
+
+`BLOCK IO`：显示块IO开销
+
+`CONTEXT SWITCHES`：上下文切换开销
+
+`CPU`：显示CPU开销信息
+
+`IPC`：显示发送和接收开销信息
+
+当出现：
+
+- converting HEAP to MyISAM：查询结果太大，内存不够，数据往磁盘上搬了
+
+- Creating tmp table：创建临时表，先拷贝数据到临时表，用完后在删除临时表
+- copying to tmp table on disk：把内存中临时表复制到磁盘上
+- locked
+
+如果在show profile是出现这些情况，则sql需要优化
+
+## 分析查询语句：EXPLAIN
 

@@ -1435,3 +1435,72 @@ show profile的常用查询参数：
 
 ## 分析查询语句：EXPLAIN
 
+explain语句输出的各个列的作用：
+
+| 列名          | 描述                                                   |
+| ------------- | ------------------------------------------------------ |
+| id            | 在一个大的查询语句中每个SELECT关键字都对应一个唯一的id |
+| select_type   | SELECT关键字对应的那个查询的类型                       |
+| table         | 表名                                                   |
+| partitions    | 匹配的分区信息                                         |
+| type          | 针对单表的访问方法                                     |
+| possible_keys | 可能用到的索引                                         |
+| key           | 实际上使用的索引                                       |
+| key_len       | 实际使用的索引长度                                     |
+| ref           | 当使用索引列等值查询时，与索引列进行等值匹配的对象信息 |
+| rows          | 预估的需要读取的记录条数                               |
+| filtered      | 某个表经过搜索条件过滤后剩余记录条数的百分比           |
+| Extra         | 一些额外的信息                                         |
+
+### table,id
+
+```mysql
+# 1.table:表名，查询的每一行记录都对应一个单表
+EXPLAIN SELECT * FROM s1;
+
+# s1:驱动表  s2:被驱动表
+EXPLAIN SELECT * FROM s1 INNER JOIN s2;
+
+# 2行记录，2个select的id
+EXPLAIN SELECT * FROM s1 WHERE key1 IN (SELECT key1 FROM s2) OR key3 = 'a';
+
+# 2行记录，1个select的id, 查询优化器可能对涉及子查询的查询语句进行重写
+EXPLAIN SELECT * FROM s1 WHERE key1 IN (SELECT key2 FROM s2 WHERE common_field = 'a');
+
+# 3行记录，多的那行select_id为空，表名为<union1,2>：Union去重
+EXPLAIN SELECT * FROM s1 UNION SELECT * FROM s2;
+
+# 2行记录
+EXPLAIN SELECT * FROM s1 UNION ALL SELECT * FROM s2;
+```
+
+小结：
+
+- id相同，可以认为是一组，从上往下顺序执行
+- 在所有组中，id值越大，优先级越高，越先执行
+- 关注点：id号每个号码，表示一次独立查询，一个sql的查询次数越少越好
+
+### select_type
+
+一条大的查询语句可以包含若干个SELECT关键字，==每个SELECT关键字代表一个小的查询语句==，而每个SELECT关键字的FROM子句中都可以包含若干张表（这些表用来做连接查询），==每一张表都对应着执行计划输出中的一条记录==，对于同一个SELECT关键字中的表来说，他们的id值是相同的。
+
+MySQL为每一个SELECT关键字代表的查询都定义了一个select_type属性，当我们知道select_type属性，就知道了该查询在整个查询中的角色。
+
+```mysql
+# 查询语句中不包含UNION或者子查询的查询都算做是SIMPLE类型
+EXPLAIN SELECT * FROM s1;
+
+# 连接查询也是SIMPLE类型
+EXPLAIN SELECT * FROM s1 INNER JOIN s2;
+
+#对于包含UNION或者UNION ALL的查询来说，最左表的查询select_type为PRIMARY，其他都是UNION，由于UNION需要去重，针对临时表的查询的select_type就是UNION RESULT
+EXPLAIN SELECT * FROM s1 UNION SELECT * FROM s2;
+
+#如果包含子查询的查询语句不能转为对应的semi-join的形式，并且该子查询是不相关子查询
+#该子查询的第一个select关键字代表的那个查询select_type就是SUBQUERY
+EXPLAIN SELECT * FROM s1 WHERE key1 IN (SELECT key1 FROM s2) OR key3 = 'a';
+
+// todo
+```
+
+### type⭐

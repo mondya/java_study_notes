@@ -1504,3 +1504,46 @@ EXPLAIN SELECT * FROM s1 WHERE key1 IN (SELECT key1 FROM s2) OR key3 = 'a';
 ```
 
 ### type⭐
+
+执行计划的一条记录就代表MySQL对某个表的执行查询时的访问方法，又称访问类型，在explain语句中表示为type列。比如，看到type列的值是ref，表明MySQL即将使用ref访问方法来执行对s1表的查询。
+
+==`system`==>==`const`==>==`eq_ref`==>==`ref`==>`fulltext`>`ref_or_null`>`index_merge`>`unique_subquery`>`index_subquery`>==`range`==>==`index`==>==`ALL`==
+
+SQL性能优化的目标：至少达到range级别，要求ref级别，最好const级别
+
+```mysql
+# 当根据主键或者唯一二级索引列与常数进行等值匹配时，对单表的访问类型就是const
+EXPLAIN SELECT * FROM s1 WHERE id = 10006;
+
+# 在连接查询时，如果被驱动表是通过主键或者唯一二级索引等值匹配的方式进行访问，则对该被驱动表的访问类型是eq_ref，左表的类型为ALL
+EXPLAIN SELECT * FROM s1 INNER JOIN s2 ON s1.id = s2.id;
+
+# 当通过普通二级索引进行等值匹配来查询某个表，那么对该表的访问类型是ref
+EXPLAIN SELECT * FROM s1 WHERE key1 = 'a';
+
+# 当对普通二级索引进行等值匹配查询，该索引的列也可以是null时，那么类型是ref_or_null
+EXPLAIN SELECT * FROM s1 WHERE key1 = 'a' OR key1 IS NULL;
+
+# unique_subquery是针对一些包含IN子查询的查询语句中，如果查询优化器决定将IN子查询转换成EXISTS子查询，而且子查询可以使用主键进行等值匹配，那么类型就是unique_subquery
+EXPLAIN SELECT * FROM s1
+WHERE key2 IN (SELECT id FROM s2 WHERE s1.key1 = s2.key1) OR key3 = 'a';
+
+# 如果使用索引获取某些范围区间的记录，那么就是range
+EXPLAIN SELECT * FROM s1 WHERE key1 IN ('a', 'b');
+
+#  当使用索引覆盖，但需要扫描全部的索引记录时，该表的访问方法就是index(key_part2和key_part3在联合索引中)
+EXPLAIN SELECT key_part2 FROM s1 WHERE key_part3 = 'a';
+```
+
+### possible_keys和key（可能用到的索引和实际用到的索引）
+
+### key_len：实际使用到的索引长度（字节数）
+
+### ref：当使用索引列等值查询时，与索引列进行等值匹配的对象信息
+
+### rows：预估额需要读取的记录条数（越小越好）
+
+### filtered：某个表经过搜索条件过滤后剩余记录条数的百分比
+
+### Extra
+

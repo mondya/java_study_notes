@@ -1547,3 +1547,56 @@ EXPLAIN SELECT key_part2 FROM s1 WHERE key_part3 = 'a';
 
 ### Extra
 
+## 索引优化与查询优化
+
+### 物理查询优化和逻辑查询优化
+
+- 物理查询优化是通过==索引==和==表连接方式==等技术来进行优化
+- 逻辑查询优化是通过SQL==等价变换==提升查询效率，即换一种查询方式效率可能更高
+
+### 索引失效
+
+#### 最左前缀匹配
+
+```mysql
+create index idx_age on student(age);
+create index idx_age_classid on student(age, classId);
+create index idx_age_classid_name on student(age, classId, name);
+
+# 未使用索引
+EXPLAIN SELECT SQL_NO_CACHE * FROM student WHERE student.classid = 1 and student.name = 'ac';
+
+# 使用了idx_age_classid_name索引
+EXPLAIN SELECT SQL_NO_CACHE * FROM student WHERE classid = 4 and student.age = 4 and student.name = 'a';
+```
+
+#### 计算，函数，类型转换（自动或手动）导致索引失效
+
+#### 范围条件的右边的索引失效
+
+```mysql
+create index idx_age_classid_name on student(age, classId, name);
+
+# 使用了索引，但是key_len=10 , age5 + classId5，name没有用上
+EXPLAIN SELECT * FROM student
+WHERE age = 30 and classId > 20 and name = 'abc';
+```
+
+#### 不等于（!=或者<>）索引失效
+
+#### IS NULL可以使用索引，IS NOT NULL无法使用索引（不是绝对，和字段是否能为null有关）
+
+#### like以通配符%开头索引失效
+
+#### OR前后存在非索引的列，索引失效
+
+```mysql
+CREATE INDEX idx_age ON student(age);
+
+# 只有idx_age的情况下索引失效
+EXPLAIN SELECT * FROM student WHERE age = 10 or classId = 100;
+```
+
+#### 数据库和表的字符集统一使用utf8mb4
+
+统一使用utf8mb4兼容性更好，统一字符集可以避免由于字符集转换产生乱码，不同的字符集进行比较前需要进行转换会造成索引失效。

@@ -1577,7 +1577,7 @@ EXPLAIN SELECT SQL_NO_CACHE * FROM student WHERE classid = 4 and student.age = 4
 ```mysql
 create index idx_age_classid_name on student(age, classId, name);
 
-# 使用了索引，但是key_len=10 , age5 + classId5，name没有用上
+# 使用了索引，但是key_len=10 , age5 + classId5，name没有用上（由于classId是范围查找，classId>20的索引下的name都会被扫描）
 EXPLAIN SELECT * FROM student
 WHERE age = 30 and classId > 20 and name = 'abc';
 ```
@@ -1586,6 +1586,8 @@ WHERE age = 30 and classId > 20 and name = 'abc';
 
 #### IS NULL可以使用索引，IS NOT NULL无法使用索引（不是绝对，和字段是否能为null有关）
 
+b+树存储null值，会有一个专门的自增指向null值所对应的行，当执行is null查询时，MySQL 查询优化器会检查相关的索引统计信息，如果发现索引中存在 NULL 值的指针，它会选择使用该索引来加速查询。通过索引的目录结构，MySQL 可以直接定位到包含 NULL 值的行，而无需扫描整个表
+
 #### like以通配符%开头索引失效
 
 #### OR前后存在非索引的列，索引失效
@@ -1593,10 +1595,203 @@ WHERE age = 30 and classId > 20 and name = 'abc';
 ```mysql
 CREATE INDEX idx_age ON student(age);
 
-# 只有idx_age的情况下索引失效
+# 只有idx_age的情况下索引失效（另外一个字段没有索引会导致全表扫描）
 EXPLAIN SELECT * FROM student WHERE age = 10 or classId = 100;
 ```
 
 #### 数据库和表的字符集统一使用utf8mb4
 
 统一使用utf8mb4兼容性更好，统一字符集可以避免由于字符集转换产生乱码，不同的字符集进行比较前需要进行转换会造成索引失效。
+
+## 关联查询优化
+
+### 外连接（左和右）
+
+在连接字段上，添加被驱动表的索引
+
+### 内连接
+
+对于内连接来说，查询优化器可以决定谁作为驱动表，谁作为被驱动表，如果表的连接条件中只能有一个字段有索引，则有索引的字段所在表会被视为被驱动表
+
+两表都存在索引的情况下，小表驱动大表
+
+## JOIN语句原理
+
+### 驱动表和被驱动表
+
+- 对于内连接来说
+
+```mysql
+select * from a join b ON ...
+```
+
+a不一定是驱动表，优化器会根据查询语句做优化，决定先查哪张表，先查询的那张表就是驱动表，反之就是被驱动表。
+
+- 对于外连接来说
+
+```mysql
+select * from a left join b on...
+# 或者
+select * from b right join a on ...
+```
+
+通常情况下，我们认为a是驱动表，但是
+
+```mysql
+# 此时驱动表为b，被优化器转化成内连接
+EXPLAIN SELECT * FROM a left join b on a.f1 = b.f1 where a.f2 = b.f2
+```
+
+### Simple Nested-Loop Join（简单嵌套循环连接）
+
+![image-20230804232325652](.\images\image-20230804232325652.png)
+
+假设a表100条，b表1000条，则a*b=10万
+
+| 开销统计         | SNLJ  |
+| ---------------- | ----- |
+| 外表扫描次数     | 1     |
+| 内表扫描次数     | a     |
+| 读取记录数       | a+a*b |
+| join比较次数     | b*a   |
+| 回表读取记录次数 | 0     |
+
+### Index Nested-Loop Join（索引嵌套循环）
+
+其优化思路主要是为了==减少内层表数据的匹配次数==，所以要求被驱动表上必须有索引，避免和内层表的每条记录去进行比较。
+
+![image-20230804232943516](.\images\image-20230804232943516.png)
+
+| 开销统计         | SNLJ      | INLJ            |
+| ---------------- | --------- | --------------- |
+| 外表扫描次数     | 1         | 1               |
+| 内表扫描次数     | a         | 0               |
+| 读取记录数       | a + b * a | a+b(macth)      |
+| join比较次数     | b*a       | a*Index(Height) |
+| 回表读取记录次数 | 0         | b(match)        |
+
+### Block Nested-Loop Join（块嵌套循环连接）
+
+将驱动表join相关的数据列缓存到Join Buffer中，然后全表扫描被驱动表，被驱动表的每一条记录一次性和join buffer中的所有驱动表记录进行匹配（内存中操作），将简单嵌套循环合并成一次
+
+![image-20230804233718768](.\images\image-20230804233718768.png)
+| 开销统计         | SNLJ      | INLJ            | BNLJ                                          |
+| ---------------- | --------- | --------------- | --------------------------------------------- |
+| 外表扫描次数     | 1         | 1               | 1                                             |
+| 内表扫描次数     | a         | 0               | a * used_column_size / join_buffer_size       |
+| 读取记录数       | a + b * a | a+b(macth)      | a+b*(a * used_column_size / join_buffer_size) |
+| join比较次数     | b*a       | a*Index(Height) | b * a                                         |
+| 回表读取记录次数 | 0         | b(match)        | 0                                             |
+
+### 总结
+
+- 整体效率：INLJ > BNLJ > SNLJ
+- 永远用小结果集驱动大结果集（其本质就是减少外层循环的数据数量）（结果集可以理解为要查询的列*记录的行数）
+- 为被驱动表匹配的调教增加索引（减少内层表的循环匹配次数）
+- 增大join_buffer_size的大小（一次缓存的数据越多，内层包的扫表次数就越少）
+
+## 子查询优化
+
+==子查询是MySQL的一项重要的功能，可以帮助我们通过一个SQL语句实现比较复杂的查询，但是，子查询的执行效率不高。==
+
+- 执行子查询时，MySQL需要为内层查询语句的查询结果==建立临时表==，然后外层查询语句从临时表中查询记录，查询完毕后，在==撤销这些临时表==。这样会消耗过多的CPU和IO资源，产生大量的慢查询。
+- 子查询的结果集存储的临时表，不论是内存临时表还是磁盘临时表==都不会存在索引==，所以查询性能会受到影响。
+- 对于返回的结果集比较大的子查询，其对查询性能的影响也就越大。
+
+### 使用联表查询
+
+==在MySQL中，可以使用连接（JOIN）查询来替代子查询，连接查询不需要建立临时表，其速度比子查询要快==，如果查询中使用索引，性能会更好。
+
+==结论：尽量不要用NOT IN或者NOT EXISTS，用LEFT JOIN xxx ON xxx WHERE xxx IS NULL替代==
+
+## 排序优化
+
+在MySQL中，支持两种排序方式，分别是`FileSort`和`Index`排序
+
+- Index排序中，索引可以保证数据的有序性，不需要在进行排序，效率更高
+- FileSort排序则一般在内存中进行排序，占用CPU较多，如果结果较大，会产生临时文件IO到磁盘进行排序的情况，效率更低
+
+优化建议：
+
+- SQL中，可以在WHERE子句和ORDER BY 子句中使用索引，目的是在WHERE子句中避免全表扫描，在ORDER BY子句避免使用FileSort排序（虽然某些情况下全表扫描，或者FileSort排序不一定比索引慢）
+- 尽量使用index完成order by排序，如果where和order by后面是相同的列就使用单列索引；如果不同就使用联合索引
+- 无法使用Index时，需要对FileSort进行调优
+
+### ORDER BY时不limit，索引失效
+
+order by时不限制条数，回表导致扫描全表；如果只查询了order by中字段，则索引生效（不用进行回表操作）。
+
+### ORDER BY时规则不一致，索引失效（顺序错，不索引；方向反，不索引）
+
+例：创建2个字段联合索引，两个字段都是正序
+
+对于联合索引，order by时一个字段倒序排列，一个字段正序排列，索引失效；两个字段都倒序排列，索引生效。
+
+```mysql
+# 索引student(age, classid, name), student(age, classid, stuno)
+
+# 不使用索引
+EXPLAIN SELECT * FROM student ORDER BY age DESC, classid ASC limit 10;
+
+# 不使用索引
+EXPLAIN SELECT * FROM student ORDER BY classid DESC , name DESC  limit 10;
+
+# 不使用索引（由于排序条件与索引的顺序不完全匹配，优化器可能会认为使用索引排序的成本较高，因此选择执行全表扫描来满足排序需求，导致索引失效）
+EXPLAIN SELECT * FROM student ORDER BY age ASC, classid DESC Limit 10;
+
+# 使用索引
+EXPLAIN SELECT * FROM stduent ORDER BY age DESC, classid DESC Limit 10;
+```
+
+### 无过滤，不索引
+
+```mysql
+# 索引student(age, classid, name), student(age, classid, stuno)
+
+# 使用索引student(age, classid, stuno)，但是key_len只有5，只用上age
+# 以过滤条件为主，当查询到的数据较少时,查询器认为不用走classid的索引
+EXPLAIN SELECT * FROM student WHERE age = 45 ORDER BY classid;
+EXPLAIN SELECT * FROM student WHERE age = 45 ORDER BY classid, name;
+
+# 不使用索引
+EXPLAIN SELECT * FROM student WHERE classid = 45 ORDER BY age;
+
+#使用索引student(age, classid, name)，但是type是index，效率不高
+EXPLAIN SELECT * FROM student WHERE classid = 45 ORDER BY age LIMIT 10;
+```
+
+### 总结
+
+```mysql
+INDEX a_b_c(a,b,c)
+
+# order by 能使用索引最左前缀
+- order by a
+- order by a,b
+- order by a,b,c
+- order by a desc, b desc, c desc
+
+# 如果where使用索引的最左前缀定义为常量，则order by 能使用索引
+- where a = const order by b,c
+- where a = const and b = const order by c
+- where a = const order by b,c 
+- where a = const and b > const order by b,c
+
+# 不能使用索引进行排序
+- orde by a ASC, b DESC, C DESC # 排序不一致
+- where g = const order by b,c # 丢失a索引
+- where a = const oder by c # 丢失b索引（用到索引，但是排序没有使用到）
+- where a = const order by a,d # d不是索引的一部分
+- where a in (...) order by b,c # 对于排序来说，多个相等条件也是范围查找
+```
+
+## GROUP BY优化
+
+- group by使用索引的原则几乎和order by 一致，grou by 即使过滤条件没有用到索引，也可以直接使用索引
+
+- group by先排序再分组，遵循左前缀法则
+- 当无法使用索引列，增大`max_length_for_sort_data`和`sort_buffer_size`参数的设置
+- where效率高于having，尽量使用where
+- 减少使用order by。order by,group by, distinct这些语句较为耗费cpu
+- 包含了order by，group by，distinct这些查询的语句，where条件过滤出来的结果集请保持再1000行以内，否则SQL会很慢
+

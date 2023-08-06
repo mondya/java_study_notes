@@ -1795,3 +1795,111 @@ INDEX a_b_c(a,b,c)
 - 减少使用order by。order by,group by, distinct这些语句较为耗费cpu
 - 包含了order by，group by，distinct这些查询的语句，where条件过滤出来的结果集请保持再1000行以内，否则SQL会很慢
 
+## 优化分页查询
+
+一般分页查询时，通过创建覆盖索引能够比较好地提升性能。一个常见又非常头疼的问题就是limit 2000000,10，此时需要MySQL排序前2000010记录，仅仅返回2000000-2000010的记录，其他记录丢弃，查询排序的代价非常大。
+
+```mysql
+# 性能极低，type = all
+EXPLAIN SELECT * FROM student limit 2000000,10;
+```
+
+### 优化思路1
+
+在索引上完成排序分页操作，最后根据主键关联回表查询所需要的其他列内容
+
+```mysql
+EXPLAIN SELECT * FROM student t, (SELECT id FROM student ORDER BY id Limit 2000000, 10) a
+WHERE t.id = a.id;
+```
+
+### 优化思路2
+
+```mysql
+EXPLAIN SELECT * FROM student WHERE id > 2000000 limit 10;
+```
+
+## 尽量使用覆盖索引（避免回表）
+
+索引是高效找打行的一个方法，但是一般数据库也能使用索引找到一个列的数据，因此它不必读取整个行，毕竟索引叶子节点存储了他们的索引的数据；当能通过读取索引就可以得到想要的数据，那就不需要读取行。==一个索引包含了满足查询结果的数据就叫做覆盖索引==
+
+优点：
+
+- 避免Innodb表进行索引的二次查询（回表）
+- 可以把随机IO变成顺序IO加快查询效率
+
+## 索引下推（尽量减少回表）
+
+Index Condition Pushdown(ICP)是MySQL5.6中新特性，是一种在存储引擎层使用索引过滤数据的优化方式
+
+- 如果没有ICP，存储引擎会遍历索引以定位基表中的行，并将他们返回给MySQL服务器，由服务器评估where后面的条件是否保留行
+- 启用ICP后，如果部分where条件可以用仅使用索引中的列进行筛选，则mysql服务器会把这部分where调教放到存储引擎中筛选。然后，存储引擎通过使用索引条目来筛选数据，并且只有在满足这一条件时才从表中读取行。
+  - 好处：IPC可以减少存储引擎必须访问基表的次数和MySQL服务器必须访问存储引擎的次数
+  - 但是ICP的加速效果取决于在存储引擎内通过ICP筛选掉的数据的比例。
+
+```mysql
+# using index condition, key1有索引（两个查询条件都是key1，like操作不需要回表查询）
+EXPLAIN SELECT * FROM s1 WHERE key1 > 'z' and key1 like '%a';
+```
+
+### 使用条件
+
+- 如果表访问的类型是range,ref,eq_ref和ref_or_null可以使用ICP
+- ICP可以用于Innodb和MyISM表，包括分区表InnoDB和MyISAM表
+- 对于InnoDB表，ICP仅仅用于二级索引。ICP的目标是减少全行读取次数，从而减少IO操作
+- 当SQL使用覆盖索引时，不支持ICP，因为这种情况下使用ICP不会减少IO
+- 相关子查询的条件不能使用ICP
+
+## 其他优化策略
+
+### EXISTS和IN的区分
+
+索引是个前提，选择哪种方式需要看表的大小，尽量小表驱动大表
+
+```mysql
+select * from a where cc in (select cc from b)
+
+select * from a where exists (select cc from b where b.cc = a.cc)
+
+# 上面两条sql,当a表数据小于b表数据时，用exists更好。因为exists的实现，相当于外表循环，实现的逻辑类似于
+for i in a
+	for j in b
+		if j.cc == i.cc then ...
+		
+# 当a大于b表数据时，用in,实现的逻辑类似于
+for i in b
+	for j in a
+		if j.cc = i.cc then
+```
+
+a表小就用exist，b表小就用in
+
+### COUNT(*),COUNT(1)和COUNT(具体字段)效率
+
+前提：如果要统计的某个字段的非空数据行数
+
+1：count(*)和count(1)都是对所有结果进行count，这两者在本质上没有区别（二者执行时间可能略有差别，不过还是可以堪称执行效率是相等的）。
+
+2：如果是MyISAM存储引擎，统计数据表的行数只要O(1)复杂度，这是因为每张MyISAM的数据表都有一个meta信息存储了row_count值，而一致性有表级锁来保证。如果是InnoDB存储引擎，因为InnoDB支持事务，采用行级锁和MVCC机制，所以无法维护row_count值，因此需要全表扫描，复杂度O(n)
+
+3：在InnoDB引擎中，如果采用count(具体字段)来统计行数，要尽量采用二级索引。因为主键采用的索引是聚簇索引，聚簇索引包含的信息多，明显会大于二级索引。对于count(*)和count(1)，他们不需要查找具体的行，只是统计行数，系统会自动选择占用空间更小的二级索引来进行统计。如果有多个二级索引，会使用key_len小的二级索引进行扫描。
+
+### 关于select *
+
+- mysql在解析的过程中，会通过查询数据字典将*转换成具体的字段，耗费资源
+- 使用*无法使用覆盖索引
+
+### limit 1对优化的影响
+
+在字段没有唯一索引的情况下，如果确实数据只有一条，使用limit 1可以提升效率
+
+### 多使用commit
+
+在程序中尽量多使用commit，这样程序的性能得到提高，需求也会因为commit所释放的资源而减少
+
+释放的资源：
+
+- 回滚段上用于恢复数据的信息
+- 被程序语句获得的锁
+- redo / undo log bufer中的空间
+- 管理上述3种资源中的内部花费

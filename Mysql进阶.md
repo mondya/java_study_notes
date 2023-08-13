@@ -1964,3 +1964,98 @@ a表小就用exist，b表小就用in
 
 - 客户端代理：分片逻辑在应用端，封装在jar包中，通过修改或者封装JDBC层来实现。当当网sharding-jdbc等
 - 中间件代理：在应用和数据中间加了一个代理层，分片逻辑统一维护在中间件服务中。360的ATLAS
+
+## savePoint
+
+```mysql
+mysql> delete from t1;   -- 清空测试表
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> start transaction;  -- 开启事务
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> insert into t1 (name) values(1); -- 插入一条 name=1
+Query OK, 1 row affected (0.00 sec)
+
+mysql> savepoint p1;-- 保存回滚点p1
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> insert into t1 (name) values(2);
+Query OK, 1 row affected (0.00 sec)
+
+mysql> savepoint p2 ; -- 保存回滚点p2
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> insert into t1 (name) values(3);
+Query OK, 1 row affected (0.00 sec)
+
+mysql> insert into t1 (name) values(4);
+Query OK, 1 row affected (0.00 sec)
+
+mysql> savepoint p3; -- 保存回滚点p3
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> rollback to p2; ; -- 回滚点p2
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> commit; -- 提交事务
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> select * from t1 \G; -- 查询数据 发现只有p2之前的数据保存了，即实现了回滚至指定点。
+*************************** 1. row ***************************
+        id: 9
+      name: 1
+       age: 0
+  varchar8:
+varchar100:
+*************************** 2. row ***************************
+        id: 10
+      name: 2
+       age: 0
+  varchar8:
+varchar100:
+2 rows in set (0.00 sec)
+
+ERROR:
+No query specified
+```
+
+## 并发事务造成的问题
+
+### 脏写（Dirty Write）
+
+![image-20230813212004182](.\images\image-20230813212004182.png)
+
+### 脏读（Dirty Read）
+
+![image-20230813212233637](.\images\image-20230813212233637.png)
+
+### 不可重复读（Non-Repeatable Read）
+
+begin之后需要手动commit；否则默认commit
+
+对于A,B事务，seesionA读取一个字段，然后B更新该字段，之后sessionA再次读取这个字段，值发生变化，这种现象叫不可重复读
+
+![image-20230813212956408](.\images\image-20230813212956408.png)
+
+![image-20230813213644804](.\images\image-20230813213644804.png)
+
+### 幻读（Phantom）
+
+对于事务A,B,从一个表中读取了一个字段，然后sessionB在该表中插入了一些新的行，之后，如果seessionA再次读取同一个表，就会多出几行，这种现象叫做幻读。
+
+![image-20230813213534621](.\images\image-20230813213534621.png)
+
+## 事务的隔离级别
+
+### 读未提交
+
+事务A可以读取到事务B已经修改但是还未commit的数据（脏读，不可重复读，幻读）
+
+### 读已提交
+
+事务A只能读取到事务B已经修改并且已经commit的数据（造成幻读）
+
+### 可串化行
+
+不会出现脏读，不可重复读，幻读问题，通过加锁实现（性能最低）

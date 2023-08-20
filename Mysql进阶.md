@@ -1,3 +1,5 @@
+
+
 # MySQL进阶
 
 ## 数据库相关概念
@@ -237,7 +239,7 @@ select a, b from a right join b on a.key = b.key where a.key is null
 
 ## SQL的执行原理
 
-SELECT是先执行FROM这布。在这个阶段，如果是多张表联查，还会经历下面的几个步骤：
+SELECT是先执行FROM这步。在这个阶段，如果是多张表联查，还会经历下面的几个步骤：
 
 1.首先通过CROSS JOIN求笛卡尔积，相当于得到虚拟表vt1-1;
 

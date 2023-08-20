@@ -2300,6 +2300,36 @@ session1和session2进入互相等待对方资源的释放，进入了死锁状�
 - 如果不符合ReadView规则，就需要从Undo Log中获取历史快照
 - 最后返回复合规则的数据
 
-如果某个版本的数据对当前事务不可见的话，就顺着版本链找到下一个版本的数据，继续按照上面的步骤判断可见性，一次类推，直到本本链中最后一个版本，如果最后一个版本也不可见，那么意味着该条记录对于当前事务是完全不可见，查询结果就不包含该记录。
+如果某个版本的数据对当前事务不可见的话，就顺着版本链找到下一个版本的数据，继续按照上面的步骤判断可见性，以此类推，直到本链中最后一个版本，如果最后一个版本也不可见，那么意味着该条记录对于当前事务是完全不可见，查询结果就不包含该记录。
 
-当隔离级别为读已提交时，一个事务的每一次SELECT查询都会重新获取一次Read View；当隔离级别为可重复读时，就避免了不可重复读，这是因为一个事务只在第一次SELECT的时候会获取一次Read View，而后面所有的SELECT都会复用这个Read View
+当隔离级别为读已提交时，一个事务的每一次SELECT查询都会重新获取一次Read View；当隔离级别为可重复读时，就避免了不可重复读，这是因为一个事务只在第一次SELECT的时候会获取一次Read View，而后面所有的SELECT都会复用这个Read View。
+
+## 数据库备份
+
+```mysql
+mysqldump -uroot -p 数据库名>绝对路径/xxx.sql  # --all-databases:备份所有; --databases 数据库1 数据库2
+
+mysqldump -uroot -p 数据库名 表1 表2 >路径.sql  # 备份部份表
+
+mysqldump -uroot -p 数据库名 表名 --where = "id < 15" >路径.sql # 备份表中的部分数据
+
+mysqldump -uroot -p 数据库名 --ignore-table = 数据库名.表名 >路径.sql #备份库，指定库中的某些表不进行备份
+
+
+
+# 恢复数据，如果恢复文件中包含了创建数据库的语句，则恢复时不需要指定数据库名称
+mysql -uroot -p 数据库名<绝对路径/xxx.sql # 恢复单库
+mysql -uroot -p < 全量备份.sql # 如果使用了--all-databases参数，恢复时不需要指定数据库 
+
+# 全量备份中恢复单库
+sed -n '/^-- Current Dtabase: `dbname`/, /^-- Current Database: `/p' 全量备份.sql > 提取出的dbname的指定.sql
+
+# 恢复单库中的单表
+cat dbname.sql | sed -e '/./{H;$!d}' -e 'x;/CREATE TABLE `表名`/!d;q' > xxx_structure.sql
+cat dbname.sql | grep --ignore-case 'insert into `表名`' > xxx_data.sql
+# 用Shell语法分离出创建表的语句以及插入数据的语句后，再依次导出即可完成恢复
+
+source xxx_structure.sql;
+source xxx_data.sql;
+```
+

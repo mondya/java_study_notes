@@ -419,12 +419,16 @@ Docker挂载主机目录访问如果出现cannot open directory.:Permission deni
 
 ```yaml
 [mysqld]
-## 设置servier_id，同一局域网中需要唯一
+## 【必须】设置servier_id，同一局域网中需要唯一
 server_id=101
 ## 指定不需要同步的数据库名称
 binlog-ignore-db=mysql
-## 开启二进制日志功能
+## 设置需要复制的数据库，默认全部记录。建议不设置，默认
+binlog-do-db=timetabling
+## 【必须】开启二进制日志功能，指明路径。比如：自己本地的路径/log/mysqlbin
 log-bin=mall-mysql-bin
+## 可选：0默认表示读写（主机），1表示只读（从机）
+read-only=0
 ## 设置二进制日志使用内存大小
 binlog_cache_size=1M
 ## 设置使用的二进制日志格式(mixed,statement,row)
@@ -445,6 +449,15 @@ slave_skip_errors=1062
 在`/xhh/mysql-master/conf`目录下新建my.cnf文件
 
 重启mysql-master:`docker restart mysql-master`
+
+mysql5:
+
+```mysql
+# mysql5只需要设置这一步
+GRANT REPLICATION SLAVE ON *.* to 'slave'@'从机数据库IP' IDENTIFIED BY 'admin123'; # 5.5, 5,7
+```
+
+mysql8:
 
 创建用户`create user 'slave'@'%' identified by '123456';`
 

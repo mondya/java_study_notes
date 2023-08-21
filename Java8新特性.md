@@ -389,3 +389,99 @@ T：入参类型；出参类型是Boolean
 
 # Lambda表达式
 
+## 函数式编程只关注参数和具体的操作
+
+```java
+public class LambdaDemo01 {
+    public static void main(String[] args) {
+        // 基本写法
+        int num1 = calculateNum(new IntBinaryOperator() {
+            @Override
+            public int applyAsInt(int left, int right) {
+                return left + right;
+            }
+        });
+        
+        // 进阶写法
+        int num2 = calculateNum((int left, int right) -> {
+             return left + right;
+        });
+        // 或者
+        int num3 = calculateNum((int left, int right) -> left + right);
+
+        
+        // 最终写法
+        int num4 = calculateNum(Integer::sum);
+        
+        printNum(new IntPredicate() {
+            @Override
+            public boolean test(int value) {
+                return value%2 == 0;
+            }
+        });
+        
+        // 泛型，根据返回类型
+        Integer conver2Integer1 = typeConver(new Function<String, Integer>() {
+            @Override
+            public Integer apply(String s) {
+                return Integer.parseInt(s);
+            }
+        });
+
+        String s1 = typeConver((String s) -> {
+            return s + "a";
+        });
+
+    }
+    
+    public static int calculateNum(IntBinaryOperator operator) {
+        int a = 10;
+        int b = 20;
+        return operator.applyAsInt(10, 20);
+    }
+    
+    public static void printNum(IntPredicate predicate) {
+        int[] arr = {1,2,3,4,5,6,7,8,9,10};
+
+        for (int i : arr) {
+            if (predicate.test(i)) {
+                System.out.println(i);
+            }
+        }
+    }
+    
+    // 泛型
+    public static <R> R typeConver(Function<String, R> function) {
+        String str = "1234";
+        R result = function.apply(str);
+        return result;
+    }
+}
+```
+
+## 省略规则
+
+- 参数类型可以省略
+
+```java
+String s1 = typeConver( (s) -> {
+            return s + "a";
+        });
+```
+
+- ==方法体只有一句代码时大括号return和唯一一句代码的分号可以省略==
+
+```java
+String s1 = typeConver( (s) -> s + "a");
+```
+
+- 方法只有一个参数时小括号可以省略
+
+```java
+String s1 = typeConver( s -> s + "a");
+```
+
+
+
+
+

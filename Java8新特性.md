@@ -1,6 +1,6 @@
 # Java8 stream的详细用法
 
-> 筛选，去重，跳过，截取
+## 筛选(filter)，去重(distinct)，跳过(skip)，截取(limit)
 
 ```java
 Stream<Integer> stream = Stream.of(6, 4, 6, 7, 3, 9, 8, 10, 12, 14, 14);
@@ -11,7 +11,7 @@ Stream<Integer> newStream = stream.filter(s -> s > 5) //6 6 7 9 8 10 12 14 14  �
         .limit(2); //9 8	获取2个元素
 ```
 
->  映射
+## 映射(map)
 
 `map`:接收一个函数作为参数，改函数被应用到每个元素上，并映射成一个新的元素
 
@@ -34,7 +34,7 @@ Stream<String> s3 = list.stream().flatMap(s -> {
 s3.forEach(System.out::println); // a b c 1 2 3
 ```
 
-> 排序
+## 排序
 
 `sorted`:自然排序
 
@@ -48,7 +48,7 @@ s3.forEach(System.out::println); // a b c 1 2 3
         System.out.println("list:" + list);
 ```
 
-> peek消费
+## peek消费
 
 `peek`：如同map,能得到流中的每一个元素。但是map接收的是Function函数，有返回值；而peek接收的是Consumer表达式，没有返回值
 
@@ -66,7 +66,7 @@ Student{name='aa', age=100}
 Student{name='bb', age=100}  
 ```
 
-> 匹配，聚合操作
+## 匹配，聚合操作
 
 `allMatch`：接收一个 Predicate 函数，当流中每个元素都符合该断言时才返回true，否则返回false
 
@@ -99,7 +99,7 @@ Integer max = list.stream().max(Integer::compareTo).get(); //5
 Integer min = list.stream().min(Integer::compareTo).get(); //1
 ```
 
-> 规约操作
+## 规约操作（reduce）
 
 Optional<T> reduce(BinaryOperator<T> accumulator)：第一次执行时，accumulator函数的第一个参数为流中的第一个元素，第二个参数为流中元素的第二个元素；第二次执行时，第一个参数为第一次函数执行的结果，第二个参数为流中的第三个元素；依次类推。
         T reduce(T identity, BinaryOperator<T> accumulator)：流程跟上面一样，只是第一次执行时，accumulator函数的第一个参数为identity，而第二个参数为流中的第一个元素。
@@ -480,8 +480,6 @@ String s1 = typeConver( (s) -> s + "a");
 ```java
 String s1 = typeConver( s -> s + "a");
 ```
-
-
 
 
 

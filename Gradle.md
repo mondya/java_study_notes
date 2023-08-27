@@ -958,7 +958,11 @@ subprojects {
     test {
         useJunitPlatform()
     }
-    // 声明了各个依赖的版本，导入时不需要指定依赖的版本
+    // 声明了各个依赖的版本，plugins {
+    id 'java'
+    id 'org.springframework.boot' version '2.6.7'
+    id 'io.spring.dependency-management' version '1.1.0'
+}
     dependencyManagement {
         dependencies {
             for (depJar in rootProject.ext.dependencies) {

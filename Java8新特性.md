@@ -13,7 +13,7 @@ Stream<Integer> newStream = stream.filter(s -> s > 5) //6 6 7 9 8 10 12 14 14  �
 
 ## 映射(map)
 
-`map`:接收一个函数作为参数，改函数被应用到每个元素上，并映射成一个新的元素
+`map`:接收一个函数作为参数，该函数被应用到每个元素上，并映射成一个新的元素
 
 `flatmap`:接收一个函数作为参数，将流中的每个值都换成另一个流，然后把所有流连接成一个流
 
@@ -101,19 +101,47 @@ Integer min = list.stream().min(Integer::compareTo).get(); //1
 
 ## 规约操作（reduce）
 
+对流中的数据按照指定的计算方式计算出一个结果。
+
+reduce的作用是把stream中的元素组合起来，我们可以传入一个初始值，它会按照我们的计算方式依次拿流中的元素和初始化值进行计算，计算结果再和后面的元素计算。
+
+T reduce(T identity, BinaryOperator<T> accumulator);
+
+```java
+T result = identity;
+for (T element : this stream)      
+    result = accumulator.apply(result, element)  
+return result
+```
+
+不带参数的reduce（相当于默认把第一个参数作为第一个元素）
+
+```java
+boolean foundAny = false;  
+T result = null;  
+for (T element : this stream) {      
+    if (!foundAny) {          
+        foundAny = true;          
+        result = element;      
+    } else          
+        result = accumulator.apply(result, element);  
+}  
+return foundAny ? Optional.of(result) : Optional.empty()
+```
+
 Optional<T> reduce(BinaryOperator<T> accumulator)：第一次执行时，accumulator函数的第一个参数为流中的第一个元素，第二个参数为流中元素的第二个元素；第二次执行时，第一个参数为第一次函数执行的结果，第二个参数为流中的第三个元素；依次类推。
         T reduce(T identity, BinaryOperator<T> accumulator)：流程跟上面一样，只是第一次执行时，accumulator函数的第一个参数为identity，而第二个参数为流中的第一个元素。
-        <U> U reduce(U identity,BiFunction<U, ? super T, U> accumulator,BinaryOperator<U> combiner)：在串行流(stream)中，该方法跟第二个方法一样，即第三个参数combiner不会起作用。在并行流(parallelStream)中,我们知道流被fork join出多个线程进行执行，此时每个线程的执行流程就跟第二个方法reduce(identity,accumulator)一样，而第三个参数combiner函数，则是将每个线程的执行结果当成一个新的流，然后使用第一个方法reduce(accumulator)流程进行规约。
+        <U> U reduce(U identity,BiFunction<U, ? super T, U> accumulator,BinaryOperator<U> combiner)：在串行流(stream)中，该方法跟第二个方法一样，即第三个参数combiner不会起作用。在并行流(parallelStream)中,我们知道流被fork join出多个线程进行执行，此时每个线程的执行流程就跟第二个方法reduce(identity,accumulator)一样，而第三个参数combiner函数，则是将每个线程的执行结果当成一个新的流，然后使用第一个方法reduce(accumulator)流程进行规约。==并行流中的计算需要满足结合律和可交换性：加法和乘法满足，减法和除法不满足（计算结果不是预期的结果）==
 
 ```java
 //经过测试，当元素个数小于24时，并行时线程数等于元素个数，当大于等于24时，并行时线程数为16
 List<Integer> list = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24);
  
 Integer v = list.stream().reduce((x1, x2) -> x1 + x2).get();
-System.out.println(v);   // 300
+System.out.println(v);   // 1+2+3+...+24 = 300
  
 Integer v1 = list.stream().reduce(10, (x1, x2) -> x1 + x2);
-System.out.println(v1);  //310
+System.out.println(v1);  //10 + 1 + 2+...+24 = 310
  
 Integer v2 = list.stream().reduce(0,
         (x1, x2) -> {
@@ -124,8 +152,9 @@ Integer v2 = list.stream().reduce(0,
             System.out.println("stream combiner: x1:" + x1 + "  x2:" + x2);
             return x1 * x2;
         });
-System.out.println(v2); // -300
- 
+System.out.println(v2); // 0-1-2-3-4...-24 = -300, stream combiner不起作用
+
+// 并行执行 0 -1 = -1, 0-2 = -2 , 0-3 = -3...，然后用把每一结果通过x1 * x2计算
 Integer v3 = list.parallelStream().reduce(0,
         (x1, x2) -> {
             System.out.println("parallelStream accumulator: x1:" + x1 + "  x2:" + x2);
@@ -135,10 +164,16 @@ Integer v3 = list.parallelStream().reduce(0,
             System.out.println("parallelStream combiner: x1:" + x1 + "  x2:" + x2);
             return x1 * x2;
         });
-System.out.println(v3); //197474048
+System.out.println(v3); //197474048 -1*-2*。。。*-24溢出
+
+// 使用reduce求最大值
+Integer v4 = list.stream().reduce(Integer.MIN_VALUE, (result, element) -> result < element ? element : result);
+
+// 使用reduce求最小值
+Integer v5 = list.stream().reduce(Integer.MAX_VALUE, (result, element) -> result < element ? result : element);
 ```
 
-> 收集操作
+## 收集操作(Collector)
 
 Collector工具库:  Collectors
 
@@ -347,6 +382,8 @@ public class TimeUtils {
 
 # [java8 四大核心函数式接口Function、Consumer、Supplier、Predicate](https://www.cnblogs.com/powerwu/articles/10365446.html)
 
+只有一个抽象方法的接口称之为函数接口，JDK的函数式接口都加上了@FunctionalInterface注解进行标识。但是无论是否加上该注解只要接口中只有一个抽象方法，都是函数式接口。
+
 > Function<T,R>
 
 T：入参类型；R：出参类型
@@ -386,6 +423,49 @@ T：入参类型；出参类型是Boolean
 定义函数示例：Predicate<Integer> predicate = p -> p % 2 == 0;  // 判断是否、是不是偶数
 
 调用函数示例：predicate.test(100);  // 运行结果true
+
+## 常见的默认方法
+
+- and
+
+我们在使用Predicate接口时可能需要进行判断条件的拼接，而and方法相当于使用&&来拼接两个判断条件
+
+```java
+// 一般在调用包中方法，我们可以使用 && 拼接， 自定义方法可以使用and
+
+    public static void printNum2(IntPredicate predicate, IntPredicate predicate2) {
+        int[] arr = {1,2,3,4,5,6,7,8,9,10};
+
+        for (int i : arr) {
+            if (predicate.and(predicate2).test(i)) {
+                System.out.println(i);
+            }
+        }
+    }
+
+        printNum2(new IntPredicate() {
+            @Override
+            public boolean test(int value) {
+                return value > 0;
+            }
+        }, new IntPredicate() {
+            @Override
+            public boolean test(int value) {
+                return value < 10;
+            }
+        });
+
+```
+
+
+
+- or
+
+// 同and方式， 用 || 拼接
+
+- negate
+
+取反，相当于在判断前加上！
 
 # Lambda表达式
 
@@ -469,7 +549,7 @@ String s1 = typeConver( (s) -> {
         });
 ```
 
-- ==方法体只有一句代码时大括号return和唯一一句代码的分号可以省略==
+- ==方法体只有一句代码时大括号，return和唯一一句代码的分号可以省略==
 
 ```java
 String s1 = typeConver( (s) -> s + "a");
@@ -481,5 +561,91 @@ String s1 = typeConver( (s) -> s + "a");
 String s1 = typeConver( s -> s + "a");
 ```
 
+# Optional
 
+使用Optional的静态方法==ofNullable()==来把数据封装成一个Optional方法，无论传入的参数是否为null都不会出现问题。
+
+如果==确定一个对象不是空==可以使用==Opational.of()==方法把数据封装成Optional对象
+
+==推荐使用ofNullable()方法，它内部会判断空对象==
+
+```java
+    public static void main(String[] args) {
+        Optional<Author> author = getAuthor();
+        // isPresent() 判断内部value值是否为空
+        if (!author.isPresent()) {
+            System.out.println("异常");
+        }
+        
+        // 过滤
+        Optional<Author> author1 = author.filter(s -> s.getAge() > 0);
+
+        // map获取数据，返回一个Optional
+        Optional<List<Book>> books = author.map(Author::getBookList);
+        books.ifPresent(System.out::println);
+    }
+    
+    public static Optional<Author> getAuthor() {
+        Author author = new Author(1L, "蒙多", 33, "一个从菜刀中明悟哲理的祖安人", null);
+        return Optional.ofNullable(author);
+    }
+```
+
+# 方法引用
+
+类名或者对象名::方法名
+
+## 引用类的静态方法
+
+前提：如果在重写方法时，方法体中只有==一行代码==，并且这行代码==调用了某个类的静态方法==，并且我们==把要重写的抽象方法中所有的参数都按照顺序传入了这个静态方法中==，这个时候我们就可以引用类的静态方法。
+
+```java
+    private static void testStatic() {
+        List<Author> authors = getAuthors();
+        List<String> collect = authors.stream().map(s -> s.getId()).map(new Function<Long, String>() {
+            @Override
+            public String apply(Long aLong) {
+                return String.valueOf(aLong);
+            }
+        }).collect(Collectors.toList());
+        // 转换成
+        authors.stream().map( s -> s.getId()).map(String::valueOf).collect(Collectors.toList());
+    }
+```
+
+## 引用对象的实例方法
+
+类名::方法名
+
+前提：重写方法时，方法体中只有==一行代码==，并且这行代码==调用了某个对象的成员方法==，并且我们==把要重写的抽象方法中所有的参数都按照顺序传入这个成员方法中==，这个时候我们可以引用对象的实例方法。
+
+```java
+// 上面的方法
+authors.stream().map(Author::getId).map(String::valueOf).collect(Collectors.toList());
+
+    interface UseString{
+        String subStr(String str, int start, int end);
+    }
+
+    private static void testMethod(String str, UseString useString) {
+        int start = 0;
+        int end = 1;
+        useString.subStr(str, start, end);
+    }
+
+    testMethod("hello", new UseString() {
+            @Override
+            public String subStr(String str, int start, int end) {
+                return str.substring(start, end);
+            }
+        });
+// 转换成
+	testMethod("hello", String::substring);
+```
+
+## 构造器引用
+
+类名::new
+
+前提：方法体中只有==一行代码==，并且这行代码调用了==某个类的构造方法==，并且我们==把要重写的抽象方法中所有的参数都按照顺序传入这个构造方法中==，这个时候我们可以引用对象的构造器
 

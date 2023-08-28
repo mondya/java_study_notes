@@ -649,3 +649,21 @@ authors.stream().map(Author::getId).map(String::valueOf).collect(Collectors.toLi
 
 前提：方法体中只有==一行代码==，并且这行代码调用了==某个类的构造方法==，并且我们==把要重写的抽象方法中所有的参数都按照顺序传入这个构造方法中==，这个时候我们可以引用对象的构造器
 
+# 基本数据类型优化
+
+在stream流的操作中，使用的都是引用数据类型，即使是整数，操作的也是他们的包装类。包装类在进行一些运算时，涉及到自动拆箱和自动装箱，这会损耗一些性能，针对这一个问题，Stream提供了专门针对基本数据类型的方法。例如，mapToInt, mapToLong, mapToDouble, flatMapToInt, flatMapToLong，flatMapToDouble。
+
+# 并行流
+
+当流中有大量元素时，我们可以使用并行流去提高操作的效率。并行流就是把任务分配给多个线程去完成。
+
+```java
+Integer[] integers = {1,2,3,4};
+Arrays.stream(integers).parallel().map(s -> String.valueOf(s) + Thread.currentThread().getName()).forEach(System.out::println);
+
+// 结果，分成多个线程执行，没有parallel()只会在main线程中执行
+3main
+4main
+1ForkJoinPool.commonPool-worker-23
+2ForkJoinPool.commonPool-worker-19
+```

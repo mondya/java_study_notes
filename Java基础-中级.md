@@ -786,7 +786,7 @@ public class WaitAndNotify {
 
 ## 等待唤醒机制需求分析
 
-![image-20201125150301836](D:\images\image-20201125150301836.png)
+![image-20201125150301836](D:.\images\image-20201125150301836.png)
 
 # 线程池概念
 

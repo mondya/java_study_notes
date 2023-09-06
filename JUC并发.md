@@ -11,3 +11,45 @@
 用户线程：是系统的工作线程，它会完成这个程序需要完成的业务操作
 
 守护线程(Daemon Thread)：是一种特殊的线程，为其他线程服务，在后台完成一些系统性的服务，如果用户线程全部结束意味着程序需要完成的业务操作已经结束了，守护线程随着JVM一同结束工作。setDaemon(true)方法必须在start()之前设置，否则报错。垃圾回收线程就是一个守护线程。
+
+# CompletableFuture
+
+Future接口定义了操作==异步任务的一些方法==，它提供了一种==异步并行计算的功能==。如获取异步任务的执行结果、取消任务的执行、判断任务是否被取消、判断任务执行是否完毕等。(即Future接口可以为主线程开一个分支任务，专门为主线程处理耗时和费力的复杂业务)
+
+Future接口的缺点：
+
+- ==get阻塞==：一旦调用get()方法求结果，计算没有完成会造成程序阻塞
+- ==isDone()轮询==：轮询的方式会耗费CPU资源
+
+```java
+// FutureTask<V> implements RunnableFuture<V> 
+// public interface RunnableFuture<V> extends Runnable, Future<V>
+public class FutureApiDemo {
+    public static void main(String[] args) throws Exception {
+       // FutureTask同时具备Runnable和Future<V>的属性
+        FutureTask<String> stringFutureTask = new FutureTask<>(() -> {
+            System.out.println(Thread.currentThread().getName() + "\t" + ".... come in");
+            TimeUnit.SECONDS.sleep(5);
+            return "task over";
+        });
+        
+        
+        Thread thread = new Thread(stringFutureTask, "t1");
+        thread.start();
+
+        System.out.println(Thread.currentThread().getName() + "主线程 ...");
+        // 调用get会阻塞
+//        System.out.println(stringFutureTask.get());
+        // 3s无返回结果抛出超时异常
+        System.out.println(stringFutureTask.get(3, TimeUnit.SECONDS));
+    }
+}
+```
+
+## CompletableFuture对Future的改进
+
+```java
+public class CompletableFuture<T> implements Future<T>, CompletionStage<T> 
+```
+
+CompletionStage代表异步计算过程中的某个阶段，一个阶段完成可能会触发另外一个阶段；一个阶段的计算执行可以是一个Funtion，Consumer或者Runnable。比如stage.thenApply(x -> square(x)).thenAccept(x -> System.out.println(x)).thenRun(() -> System.out.println())；一个阶段的执行可能是被单个阶段的完成触发，也可能是由多个阶段一起触发。

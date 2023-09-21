@@ -53,3 +53,49 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T>
 ```
 
 CompletionStage代表异步计算过程中的某个阶段，一个阶段完成可能会触发另外一个阶段；一个阶段的计算执行可以是一个Funtion，Consumer或者Runnable。比如stage.thenApply(x -> square(x)).thenAccept(x -> System.out.println(x)).thenRun(() -> System.out.println())；一个阶段的执行可能是被单个阶段的完成触发，也可能是由多个阶段一起触发。
+
+```java
+// 在CompletableFuture类中，有4个常用的静态方法
+
+// 有返回值
+public static <U> CompletableFuture<U> supplyAsync(Supplier<U> supplier);
+public static <U> CompletableFuture<U> supplyAsync(Supplier<U> supplier, Executor executor);
+
+// 无返回值
+public static CompletableFuture<Void> runAsync(Runnable runnable);
+public static CompletableFuture<Void> runAsync(Runnable runnable,
+                                                   Executor executor) ;
+
+// 没有指定Executor的方法，直接使用默认的ForkJoinPool.commonPool()作为他的线程池执行异步代码；如果指定线程池，则使用我们自定义的线程池执行异步代码。
+```
+
+```java
+        // 使用自定义的线程池，默认的线程池是守护线程，main线程执行太快导致异步任务没有执行
+		ExecutorService thr = Executors.newFixedThreadPool(10);
+
+        CompletableFuture.supplyAsync(() -> {
+            System.out.println(Thread.currentThread().getName() + "...");
+            try {
+                TimeUnit.SECONDS.sleep(5);
+                System.out.println("5s 后出结果");
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            
+            if (true) {
+                throw new RuntimeException("exception");
+            }
+
+            return "hello";
+        }, thr).whenComplete((a, exception) -> {
+            System.out.println("计算完成" + exception);
+        }).exceptionally( e -> {
+            e.printStackTrace();
+            System.out.println("异常");
+            return "";
+        });
+        // 这里whenComplete和exceptionally都会打印错误信息，区别：exceptionally有返回值
+        // 资源回收
+        thr.shutdown();
+```
+

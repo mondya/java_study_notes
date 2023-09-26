@@ -99,3 +99,44 @@ public static CompletableFuture<Void> runAsync(Runnable runnable,
         thr.shutdown();
 ```
 
+## CompletableFuture常用方法
+
+```java
+completableFuture.get(); //方法阻塞，需要处理异常
+completableFuture.get(2L, TimeUnit.SECONDS); //等待2秒，2秒后未执行完抛出超时异常
+completableFuture.join(); //不需要抛出异常
+completableFuture.getNow("xxx"); //方法未执行完，返回自定义xxx内容；否则返回方法返回参数
+completableFuture.complete("completeValue"); //方法未执行完则立即打断并返回自定义内容，否则返回方法的返回值
+```
+
+## 对结果进行处理
+
+计算结果存在依赖关系，线程串行化
+
+### thenApply
+
+计算结果存在依赖关系，线程串行化；由于存在依赖关系，某一步发生异常后，之后的操作都不会执行。
+
+### handle
+
+计算结果存在依赖关系，线程串行化；但是某一步发生异常，会继续执行。
+
+## 对计算结果进行消费
+
+接收任务的处理结果，并消费处理，无返回结果
+
+### thenAccept
+
+## thenRun，thenAccept，thenApply的区别
+
+### thenRun(Runnable runnable)
+
+任务A执行完执行任务B，并且B不需要A的结果
+
+### thenAccept(Consumer action)
+
+任务A执行完执行B，B需要A的结果，但是任务B==无返回值==
+
+### thenApply(Function fn)
+
+任务A执行完执行B，B需要A的结果，同时任务B==有返回值==

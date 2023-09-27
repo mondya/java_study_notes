@@ -121,22 +121,29 @@ completableFuture.complete("completeValue"); //方法未执行完则立即打断
 
 计算结果存在依赖关系，线程串行化；但是某一步发生异常，会继续执行。
 
-## 对计算结果进行消费
+## 对计算结果进行消费（thenAccept）
 
 接收任务的处理结果，并消费处理，无返回结果
-
-### thenAccept
 
 ## thenRun，thenAccept，thenApply的区别
 
 ### thenRun(Runnable runnable)
 
-任务A执行完执行任务B，并且B不需要A的结果
+任务A执行完执行任务B，==并且B不需要A的结果==，无返回值
 
 ### thenAccept(Consumer action)
 
-任务A执行完执行B，B需要A的结果，但是任务B==无返回值==
+任务A执行完执行B，==B需要A的结果==，但是任务B==无返回值==
 
 ### thenApply(Function fn)
 
-任务A执行完执行B，B需要A的结果，同时任务B==有返回值==
+任务A执行完执行B，==B需要A的结果==，同时任务B==有返回值==
+
+## 使用线程池对thenRun，thenAccept，thenApply的影响
+
+- 没有传入自定义线程池，都用默认线程池ForkJoinPool；
+- 传入了自定义线程池，如果在执行第一个任务时传入了自定义线程，则
+  - 调用thenRun方法执行第二个任务时，第二个任务和第一个任务共用一个线程池
+  - 调用thenRunAsync执行第二个任务时，则第一个任务使用的是自定义线程池，第二个任务使用的是ForkJoinPool线程池
+
+同理，thenAccept和thenApply也是这种情况。

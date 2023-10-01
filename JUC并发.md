@@ -147,3 +147,168 @@ completableFuture.complete("completeValue"); //方法未执行完则立即打断
   - 调用thenRunAsync执行第二个任务时，则第一个任务使用的是自定义线程池，第二个任务使用的是ForkJoinPool线程池
 
 同理，thenAccept和thenApply也是这种情况。
+
+# synchronized关键字
+
+synchronized方法：锁对象是调用类的对象
+
+静态synchronized方法：锁对象是类的Class对象
+
+synchronized(obj)代码块：锁对象是obj
+
+# 公平锁和非公平锁
+
+默认为非公平锁，节省资源
+
+# 可重入锁
+
+隐式锁（即synchronized关键字修饰的锁）默认是可重入锁。
+
+```java
+        final Object o = new Object();
+        
+        new Thread(() -> {
+            synchronized(o) {
+                System.out.println("外部调用");
+                synchronized (o) {
+                    System.out.println("中间调用");
+                    synchronized(o) {
+                        System.out.println("最后调用");
+                    }
+                }
+            }
+        }).start();
+```
+
+
+
+显示锁（即Lock）也有ReentrantLock这样的可重入锁。(lock()和unlock()数量需要==一致==)
+
+```java
+        new Thread(() -> {
+            lock.lock();
+            try {
+                System.out.println("外层调用");
+                lock.lock();
+                try {
+                    System.out.println("内层调用");
+                    lock.lock();
+                } finally {
+                    lock.unlock();
+                }
+            } finally {
+                lock.unlock();
+            }
+            
+            lock.unlock();
+        }).start();
+```
+
+# 小结
+
+![image-20230930161312855](.\images\image-20230930161312855.png)
+
+# 线程中断机制
+
+中断是一种协作协商机制，Java没有给中断增加任何语法，中断的过程完全需要程序员自己实现。若要中断一个线程，需要手动调用线程的interrupt方法，==该方法也仅仅是将线程对象的中断标识设置成true。
+
+## 中断相关API方法
+
+### public void interrupt()
+
+实例方法interrupt()仅仅是设置线程的中断状态为true，发起一个协商而不会立即停止线程。
+
+### public static boolean interrupted()
+
+静态方法，Thread.interrupted();==返回当前线程的中断状态，测试当前线程是否已经被中断；将当前线程的中断状态设置清零并重新设置为false，清除线程的中断状态==。
+
+### public boolean interrupted()
+
+判断当前线程是否被中断（通过检查中断标志位）
+
+## 中断机制示例
+
+### 如何停止中断运行总的线程
+
+#### 通过volatile变量实现
+
+```java
+public class InterruptDemo {
+    static volatile boolean isStop = false;
+
+    public static void main(String[] args) {
+        new Thread(() -> {
+            while (true) {
+                if (isStop) {
+                    System.out.println("isStop被设置为true，停止");
+                    break;
+                }
+
+                System.out.println("hello volatile");
+            }
+        }).start();
+        
+        try {
+            Thread.sleep(20);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        new Thread(() -> {
+            isStop = true;
+        }).start();
+    }
+}
+```
+
+#### 通过AtomicBoolean实现
+
+```java
+        new Thread(() -> {
+            while (true) {
+                if (atomicBoolean.get()) {
+                    System.out.println("isStop被设置为true，停止");
+                    break;
+                }
+
+                System.out.println("hello volatile");
+            }
+        }).start();
+
+        try {
+            Thread.sleep(20);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        new Thread(() -> {
+            atomicBoolean.set(true);
+        }).start();
+```
+
+#### 通过线程类自带的中断api实例方法实现
+
+```java
+    public static void main(String[] args) {
+        Thread t1 = new Thread(() -> {
+            while (true) {
+                if (Thread.currentThread().isInterrupted()) {
+                    System.out.println("isInterrupted 被设置为true，停止");
+                    break;
+                }
+
+                System.out.println("hello isInterrupted");
+            }
+        });
+        t1.start();
+
+        try {
+            Thread.sleep(20);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        new Thread(t1::interrupt).start();
+    }
+```
+

@@ -567,7 +567,7 @@ class MyNum {
 
 # CAS
 
-CAS有3个操作数，位置内存值V，旧的预期值A，要修改的更新值B。当且仅当旧的预期值和内存值相同时，将内存值V修改为B，否则什么都不做或者重来，重来重试的这种行为称为自旋。
+CAS有3个操作数，位置内存值V，旧的预期值A，要修改的更新值B。当且仅当旧的预期值和内存值相同时，将内存值V修改为B，否则什么都不做或者重来，重试的这种行为称为自旋。
 
 ## 源码
 
@@ -584,3 +584,135 @@ CAS有3个操作数，位置内存值V，旧的预期值A，要修改的更新�
 4.这是线程A恢复，执行compareAndSwapInt方法比较，发现本线程中的值3和主内存的值4不相同，说明该值已经被其他线程修改过，那么线程A本次修改失败，==只能重新在执行一边==
 
 5.线程A重新获取到value值，因为变量value被volatile修饰，所以其他线程对它的修改，线程A总是能看到，线程A继续执行compareAndSwapInt进行比较替换，直到成功
+
+## 原子引用
+
+```java
+@NoArgsConstructor
+@AllArgsConstructor
+@Data
+class User {
+    private int age;
+    private String name;
+}
+
+public class AtomicDemoTest {
+    public static void main(String[] args) {
+        AtomicReference<User> atomicReference = new AtomicReference<>();
+
+        User a = new User(12, "a");
+        User b = new User(13, "b");
+        
+        atomicReference.set(a);
+
+        System.out.println(atomicReference.compareAndSet(a, b) + "\t" + atomicReference.get().toString());
+        System.out.println(atomicReference.compareAndSet(a, b) + "\t" + atomicReference.get().toString());
+    }
+}
+
+// 结果
+true	User(age=13, name=b)
+false	User(age=13, name=b)
+```
+
+## 自旋锁（SpinLock）
+
+CAS是实现自旋锁的基础，CAS利用CPU指令保证了操作的原子性，以达到锁的效果。自旋是指尝试获取锁的线程不会立即阻塞，而是采用==循环的方式去尝试获取锁==，当线程发现锁被占用时，会不断循环判断锁的状态，直到获取。这样的好处是减少线程上下文切换的消耗，缺点是循环会消耗CPU。
+
+```java
+/**
+ * 自旋锁
+ */
+public class SpinLockDemo {
+    
+    AtomicReference<Thread> atomicReference = new AtomicReference<>();
+    
+    public void lock() {
+        Thread thread = Thread.currentThread();
+        System.out.println(thread.getName() + "come in");
+        while (!atomicReference.compareAndSet(null, thread)) {
+            
+        }
+    }
+    
+    public void unlock() {
+        Thread thread = Thread.currentThread();
+        atomicReference.compareAndSet(thread, null);
+        System.out.println(thread.getName() + "unlock");
+    }
+
+    public static void main(String[] args) {
+        SpinLockDemo spinLockDemo = new SpinLockDemo();
+        
+        new Thread(() -> {
+            spinLockDemo.lock();
+            
+            try {
+                Thread.sleep(5000);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            
+            spinLockDemo.unlock();
+        }).start();
+        
+        
+        new Thread(() -> {
+            spinLockDemo.lock();
+            spinLockDemo.unlock();
+        }).start();
+    }
+}
+
+// 结果
+Thread-0come in
+Thread-1come in
+Thread-0unlock
+Thread-1unlock
+```
+
+## 缺点
+
+### CPU空转
+
+do-while一直循环，cpu空转
+
+### ABA问题
+
+CAS算法实现一个重要前提需要取出内存中某时刻的数据并在当下时刻比较并替换，那么在这个时间差内会导致数据的变化。
+
+比如说一个线程1从内存位置V中取值A，这时另一个线程2也从内存中取出A，并且线程2进行了一些操作将值变成了B，然后线程2又将V位置的数据变成A，这时候线程1进行CAS操作发现内存中仍然是A，预期OK，线程1操作成功。
+
+==尽管线程1的CAS操作成功，但是不代表这个过程就是没有问题的==
+
+## AtomicStampedReference
+
+为了解决ABA问题，引入AtomicStampedReference增加版本号
+
+```java
+public class AtomicStampeDemo {
+    public static void main(String[] args) {
+        Book a = new Book(1, "java");
+        
+        AtomicStampedReference<Book> atomicStampedReference = new AtomicStampedReference<>(a, 1);
+        System.out.println(atomicStampedReference.getReference() + "\t" + atomicStampedReference.getStamp());
+        
+        Book b = new Book(2, "mysql");
+        boolean flag;
+        
+        flag = atomicStampedReference.compareAndSet(a, b, atomicStampedReference.getStamp(), atomicStampedReference.getStamp() + 1);
+        System.out.println(flag + "\t" + atomicStampedReference.getReference() + "\t" + atomicStampedReference.getStamp());
+        
+        flag = atomicStampedReference.compareAndSet(b, a, atomicStampedReference.getStamp(), atomicStampedReference.getStamp() + 1);
+        System.out.println(flag + "\t" + atomicStampedReference.getReference() + "\t" + atomicStampedReference.getStamp());
+    }
+}
+
+// 结果
+Book(id=1, name=java)	1
+true	Book(id=2, name=mysql)	2
+true	Book(id=1, name=java)	3
+```
+
+# 原子类
+

@@ -150,6 +150,53 @@ completableFuture.complete("completeValue"); //方法未执行完则立即打断
 
 同理，thenAccept和thenApply也是这种情况。
 
+```java
+    public static void main(String[] args) {
+        ExecutorService executorService = Executors.newFixedThreadPool(5);
+        try {
+            CompletableFuture<Void> future = CompletableFuture.supplyAsync(() -> {
+                try {
+                    Thread.sleep(20);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                System.out.println("任务1 ： " + Thread.currentThread().getName());
+                return "a";
+            }, executorService).thenRunAsync(() -> {
+                try {
+                    Thread.sleep(20);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                System.out.println("任务2 ： " + Thread.currentThread().getName());
+            }).thenRunAsync(() -> {
+                try {
+                    Thread.sleep(20);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                System.out.println("任务3 ： " + Thread.currentThread().getName());
+            });
+
+
+
+            System.out.println(future.get(2L, TimeUnit.SECONDS));
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            executorService.shutdown();
+        }
+    }
+
+// 结果
+任务1 ： pool-1-thread-1
+任务2 ： ForkJoinPool.commonPool-worker-19
+任务3 ： ForkJoinPool.commonPool-worker-19
+null
+```
+
+
+
 # synchronized关键字
 
 synchronized方法：锁对象是调用类的对象
@@ -715,4 +762,82 @@ true	Book(id=1, name=java)	3
 ```
 
 # 原子类
+
+## 基本类型原子类
+
+```java
+public class AtomicIntegerDemo {
+    
+    public static final int SIZE = 50;
+
+    public static void main(String[] args) throws Exception {
+        MyNumber myNumber = new MyNumber();
+        // 使用CountDownLatch来判断线程是否结束
+        CountDownLatch countDownLatch = new CountDownLatch(SIZE);
+        for (int i = 1; i <= SIZE ; i++) {
+            new Thread(() -> {
+                try {
+                    for (int j = 1; j <= 1000; j++) {
+                        myNumber.add();
+                    }
+                } finally {
+                    countDownLatch.countDown();
+                }
+            }).start();
+        }
+        
+        countDownLatch.await();
+//        try {
+//            Thread.sleep(500);
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+
+        System.out.println(Thread.currentThread().getName() + "\t" + "result: " + myNumber.atomicInteger.get());
+    }
+}
+
+class MyNumber {
+    AtomicInteger atomicInteger = new AtomicInteger();
+    
+    public void add() {
+        atomicInteger.incrementAndGet();
+    }
+}
+```
+
+## 数组类型原子类
+
+```java
+public class AtomicArrayDemo {
+    public static void main(String[] args) {
+        AtomicIntegerArray atomicIntegerArray = new AtomicIntegerArray(5);
+
+        for (int i = 0; i < atomicIntegerArray.length(); i++) {
+            System.out.println(atomicIntegerArray.get(i));
+        }
+
+        System.out.println();
+        
+        int tmpInt = 0;
+        
+        tmpInt = atomicIntegerArray.getAndSet(0, 100);
+        System.out.println(tmpInt + "\t" + atomicIntegerArray.get(0));
+
+        tmpInt = atomicIntegerArray.getAndIncrement(0);
+        System.out.println(tmpInt + "\t" + atomicIntegerArray.get(0));
+    }
+}
+
+// 结果
+
+0
+0
+0
+0
+0
+
+0	100
+100	101
+```
 

@@ -841,3 +841,155 @@ public class AtomicArrayDemo {
 100	101
 ```
 
+## 引用类型原子类
+
+### AtomicReference
+
+### AtomicStampedReference
+
+携带版本号的引用类型原子类，为了解决ABA问题而设计（修改了几次问题）
+
+### AtomicMarkableReference
+
+带标记的引用类型原子类，将状态简化为true|false,解决是否修改过问题
+
+```java
+public class AtomicMarkableDemo {
+    public static void main(String[] args) {
+        AtomicMarkableReference<Integer> markableReference = new AtomicMarkableReference<>(100, false);
+        
+        new Thread(() -> {
+            boolean marked = markableReference.isMarked();
+            System.out.println(Thread.currentThread().getName() + "默认标识" + marked);
+            
+            try {
+                Thread.sleep(1000);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            
+            markableReference.compareAndSet(100, 1000, marked, !marked);
+            
+        }).start();
+        
+        new Thread(() -> {
+            boolean marked = markableReference.isMarked();
+            System.out.println(Thread.currentThread().getName() + "默认标识" + marked);
+
+            try {
+                Thread.sleep(2000);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            boolean b = markableReference.compareAndSet(100, 2000, marked, !marked);
+
+            System.out.println(Thread.currentThread().getName() + "cas result:" +  b);
+            System.out.println(Thread.currentThread().getName() + "mark:" +  markableReference.isMarked());
+            System.out.println(Thread.currentThread().getName() + "value: " +  markableReference.getReference());
+        }).start();
+    }
+}
+
+// 结果
+Thread-0默认标识false
+Thread-1默认标识false
+Thread-1cas result:false
+Thread-1mark:true
+Thread-1value: 1000
+```
+
+## 对象的属性修改原子类
+
+AtomicIntegerFieldUpdater：原子更新对象中int类型字段的值
+
+AtomicLongFieldUpdater：原子更新对象中Long类型字段的值
+
+AtomicReferenceFieldUpdater：原子更新引用类型字段的值
+
+==以一种线程安全的方式操作非线程安全对象内的某个字段==
+
+### AtomicIntegerFieldUpdater：原子更新对象中int类型字段的值
+
+```java
+public class AtomicIntegerFieldUpdaterDemo {
+    public static void main(String[] args) throws Exception{
+        Bank bank = new Bank();
+
+        CountDownLatch countDownLatch = new CountDownLatch(10);
+
+        for (int i = 0; i < 10; i++) {
+            new Thread(() -> {
+                try {
+                    for (int j = 1; j <=1000 ; j++) {
+                        bank.transformMoney(bank);
+                    }
+                } finally {
+                    countDownLatch.countDown();
+                }
+            }).start();
+        }
+        
+        countDownLatch.await();
+
+        System.out.println(Thread.currentThread().getName() + "result: " + bank.money);
+    }
+}
+// 结果
+main   result: 10000
+
+class Bank {
+    String bankName = "CCB";
+    // 更新的对象属性必须使用public volatile 修饰符
+    public volatile int money = 0;
+    
+    // 因为对象的属性修改类型原子类都是抽象类，所以每次使用都必须使用静态方法newUpdater()创建一个更新器，并且需要设置想要更新的类和属性
+    
+    AtomicIntegerFieldUpdater<Bank> fieldUpdater = AtomicIntegerFieldUpdater.newUpdater(Bank.class, "money");
+    
+    // 不使用synchronized，保证高性能原子性
+    public void transformMoney(Bank bank) {
+        fieldUpdater.getAndIncrement(bank);
+    }
+}
+```
+
+### AtomicReferenceFieldUpdater：原子更新引用类型字段的值
+
+```java
+public class AtomicReferenceFieldUpdaterDemo {
+
+    public static void main(String[] args) {
+        MyVar myVar = new MyVar();
+
+        for (int i = 0; i < 5; i++) {
+            new Thread(() -> {
+                myVar.init(myVar);
+            }).start();
+        }
+    }
+}
+
+class MyVar {
+    public volatile Boolean isInit = Boolean.FALSE;
+    
+    AtomicReferenceFieldUpdater<MyVar, Boolean> fieldUpdater = AtomicReferenceFieldUpdater.newUpdater(MyVar.class, Boolean.class, "isInit");
+    
+    public void init(MyVar myVar) {
+        if (fieldUpdater.compareAndSet(myVar, Boolean.FALSE, Boolean.TRUE)) {
+            System.out.println(Thread.currentThread().getName() + "\t" + "...start init");
+            
+            try {
+                Thread.sleep(2000);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            System.out.println(Thread.currentThread().getName() + "\t" + "over init");
+        } else {
+            System.out.println(Thread.currentThread().getName() + "\t" + "已经有线程在进行Init操作");
+        }
+    }
+}
+```
+

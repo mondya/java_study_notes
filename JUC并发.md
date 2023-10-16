@@ -993,3 +993,152 @@ class MyVar {
 }
 ```
 
+## 原子类LongAdder和LongAccumulator
+
+LongAdder性能比AtomicLong更好，减少自旋的次数
+
+```java
+public class LongAdderDemo {
+    public static void main(String[] args) {
+        LongAdder longAdder = new LongAdder();
+        
+        longAdder.increment();
+        longAdder.increment();
+        longAdder.increment();
+
+        System.out.println(longAdder);
+
+        LongAccumulator longAccumulator = new LongAccumulator(Long::sum, 0);
+        
+        longAccumulator.accumulate(2);
+        longAccumulator.accumulate(10);
+        System.out.println(longAccumulator.get());
+    }
+}
+```
+
+### 点赞案例
+
+```java
+class ClickNumber {
+    int number = 0;
+    
+    public synchronized void clickSynchronized() {
+        number++;
+    }
+    
+    AtomicLong atomicLong = new AtomicLong(0);
+    public void clickAtomicLong() {
+        atomicLong.getAndIncrement();
+    }
+    
+    LongAdder longAdder = new LongAdder();
+    public void clickLongAdder() {
+        longAdder.increment();
+    }
+    
+    LongAccumulator longAccumulator = new LongAccumulator(Long::sum, 0);
+    public void clickAccumulator() {
+        longAccumulator.accumulate(1);
+    }
+}
+
+public class AccumulatorCompareDemo {
+
+    public static final int _1W = 10000;
+    
+    public static final int THREAD = 50;
+    
+    public static void main(String[] args) throws Exception{
+        ClickNumber clickNumber = new ClickNumber();
+        
+        long startTime;
+        long endTime;
+
+        CountDownLatch countDownLatch1 = new CountDownLatch(THREAD);
+        CountDownLatch countDownLatch2 = new CountDownLatch(THREAD);
+        CountDownLatch countDownLatch3 = new CountDownLatch(THREAD);
+        CountDownLatch countDownLatch4 = new CountDownLatch(THREAD);
+        
+        startTime = System.currentTimeMillis();
+        for (int i = 1; i <= THREAD ; i++) {
+            new Thread(() -> {
+                try {
+                    for (int j = 1; j <= 100 * _1W ; j++) {
+                        clickNumber.clickSynchronized();
+                    }
+                } finally {
+                    countDownLatch1.countDown();
+                }
+            }).start();
+        }
+        
+        countDownLatch1.await();
+        endTime = System.currentTimeMillis();
+        System.out.println("synchronized cost: " + (endTime - startTime) + "毫秒" + "\t" + "result:" + clickNumber.number);
+
+
+        startTime = System.currentTimeMillis();
+        for (int i = 1; i <= THREAD ; i++) {
+            new Thread(() -> {
+                try {
+                    for (int j = 1; j <= 100 * _1W ; j++) {
+                        clickNumber.clickAtomicLong();
+                    }
+                } finally {
+                    countDownLatch2.countDown();
+                }
+            }).start();
+        }
+
+        countDownLatch2.await();
+        endTime = System.currentTimeMillis();
+        System.out.println("clickAtomicLong cost: " + (endTime - startTime) + "毫秒" + "\t" + "result:" + clickNumber.atomicLong.get());
+
+
+        startTime = System.currentTimeMillis();
+        for (int i = 1; i <= THREAD ; i++) {
+            new Thread(() -> {
+                try {
+                    for (int j = 1; j <= 100 * _1W ; j++) {
+                        clickNumber.clickLongAdder();
+                    }
+                } finally {
+                    countDownLatch3.countDown();
+                }
+            }).start();
+        }
+
+        countDownLatch3.await();
+        endTime = System.currentTimeMillis();
+        System.out.println("clickLongAdder cost: " + (endTime - startTime) + "毫秒" + "\t" + "result:" + clickNumber.longAdder.sum());
+
+
+        startTime = System.currentTimeMillis();
+        for (int i = 1; i <= THREAD ; i++) {
+            new Thread(() -> {
+                try {
+                    for (int j = 1; j <= 100 * _1W ; j++) {
+                        clickNumber.clickAccumulator();
+                    }
+                } finally {
+                    countDownLatch4.countDown();
+                }
+            }).start();
+        }
+
+        countDownLatch4.await();
+        endTime = System.currentTimeMillis();
+        System.out.println("clickAccumulator cost: " + (endTime - startTime) + "毫秒" + "\t" + "result:" + clickNumber.longAccumulator.get());
+    }
+    
+    
+}
+
+// 运行结果
+synchronized cost: 1025毫秒	result:50000000
+clickAtomicLong cost: 601毫秒	result:50000000
+clickLongAdder cost: 76毫秒	result:50000000
+clickAccumulator cost: 57毫秒	result:50000000
+```
+

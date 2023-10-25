@@ -277,7 +277,7 @@ synchronized(obj)代码块：锁对象是obj
 
 ## 中断机制示例
 
-### 如何停止中断运行总的线程
+### 如何停止中断运行中的线程
 
 #### 通过volatile变量实现
 
@@ -385,7 +385,9 @@ public class LockSupportDemo {
         new Thread(() -> {
             synchronized (o) {
                 try {
+                    System.out.println("come in");
                     o.wait();
+                    System.out.println("notify");
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -402,6 +404,7 @@ public class LockSupportDemo {
         new Thread(() -> {
             synchronized (o) {
                 o.notify();
+                System.out.println("唤醒");
             }
         }).start();
 
@@ -409,6 +412,10 @@ public class LockSupportDemo {
 }
 // wait和nitify需要配合synchronized使用，任何一处未加synchronized都会报错
 // Exception in thread "Thread-1" java.lang.IllegalMonitorStateException
+// 结果
+come in
+唤醒
+notify
 ```
 
 ## await和signal
@@ -444,6 +451,11 @@ Condition接口中的await和signal方法实现线程的等待和唤醒(lock + a
                 lock.unlock();
             }
         }).start();
+
+// 结果
+come in
+发出通知
+come in 2
 ```
 
 ## Object.wait()和Condition.await()使用的限制条件
@@ -469,6 +481,10 @@ LockSupport类中的part等待和unpart唤醒；park()和unpark()的执行顺序
         new Thread(() -> {
             LockSupport.unpark(t1);
         }).start();
+
+// 结果
+come in
+唤醒
 ```
 
 # JMM规范

@@ -1158,3 +1158,29 @@ clickLongAdder cost: 76毫秒	result:50000000
 clickAccumulator cost: 57毫秒	result:50000000
 ```
 
+## LongAdder原理分析
+
+LongAdder在无竞争的情况下，和AtomicLong一样，对==同一个base==进行操作，当出现竞争关系时则是采用==化整为零分散热点==的做法。用空间换时间，用一个数组cells，将一个value拆分进这个数组cells。多个线程需要同时对value进行操作时，可以对线程id进行hash得到hash值，再根据hash值映射到这个数组cells的某个下标，再对该下标所对应的值进行自增操作。当所有线程操作完毕，将数组cells的所有值和base都加起来作为最终结果。
+
+![image-20231029211248826](.\images\image-20231029211248826.png)
+
+longAdder.increment()过程--add(1L) --> longAccumulae(x, null, uncontended) --> sum()
+
+```java
+    /**
+     * Adds the given value.
+     *
+     * @param x the value to add
+     */
+    public void add(long x) {
+        Cell[] cs; long b, v; int m; Cell c;
+        if ((cs = cells) != null || !casBase(b = base, b + x)) {
+            boolean uncontended = true;
+            if (cs == null || (m = cs.length - 1) < 0 ||
+                (c = cs[getProbe() & m]) == null ||
+                !(uncontended = c.cas(v = c.value, v + x)))
+                longAccumulate(x, null, uncontended);
+        }
+    }
+```
+

@@ -1022,8 +1022,8 @@ public class LongAdderDemo {
         longAdder.increment();
         longAdder.increment();
 
-        System.out.println(longAdder);
-
+        System.out.println(longAdder); // longAdder获取的值并不是准确的，longAdder的sum()求和不具有原子性
+        
         LongAccumulator longAccumulator = new LongAccumulator(Long::sum, 0);
         
         longAccumulator.accumulate(2);
@@ -1160,7 +1160,7 @@ clickAccumulator cost: 57毫秒	result:50000000
 
 ## LongAdder原理分析
 
-LongAdder在无竞争的情况下，和AtomicLong一样，对==同一个base==进行操作，当出现竞争关系时则是采用==化整为零分散热点==的做法。用空间换时间，用一个数组cells，将一个value拆分进这个数组cells。多个线程需要同时对value进行操作时，可以对线程id进行hash得到hash值，再根据hash值映射到这个数组cells的某个下标，再对该下标所对应的值进行自增操作。当所有线程操作完毕，将数组cells的所有值和base都加起来作为最终结果。
+LongAdder在无竞争的情况下，和AtomicLong一样，对==同一个base==进行操作，当出现竞争关系时则是采用==化整为零分散热点==的做法。用空间换时间，用一个数组cells，将一个value拆分进这个数组cells。多个线程需要同时对value进行操作时，可以对线程id进行hash得到hash值，再根据hash值映射到这个数组cells的某个下标，再对该下标所对应的值进行自增操作。当所有线程操作完毕，将数组cells的所有值和base都加起来作为最终结果，缺点是这个最终结果不是准确的。
 
 ![image-20231029211248826](.\images\image-20231029211248826.png)
 
@@ -1182,5 +1182,111 @@ longAdder.increment()过程--add(1L) --> longAccumulae(x, null, uncontended) -->
                 longAccumulate(x, null, uncontended);
         }
     }
+```
+
+- 如果cs（即Cell数组）为空，尝试用CAS更新base字段，成功则退出；
+- 如果cs为空，CAS更新base字段失败，出现竞争，unconttended设置为true，调用longAccumulate;
+- 如果cs非空，但是当前线程映射的槽为空, uncontended为true,调用longAccumulate;
+- 如果cs非空，且当前线程映射的槽非空，CAS更新Cell的值，成功则返回；否则，uncontended设置为false，调用longAccumulate
+
+### Striped64中一些变量或者方法的定义
+
+- base：类似于AtomicLong中全局的value值。再没有竞争情况下数据直接累加到base上，或者cells扩容时，也需要将数据写入到base上
+- collide：表示扩容意向，fase一定不会扩容，true可能会扩容
+- cellsBusy：初始化cells或者扩容cells需要获取锁，0：表示无锁状态 1：表示其他线程已经持有锁
+- casCellsBusy()：通过CAS操作修改cellsBusy的值，CAS成功代表获取锁，返回true
+- NCPU：当前计算机CPU的数量，Cell数组扩容时会使用
+- getProbe()：获取当前线程的hash值
+- advanceProbe()：重置当前线程的hash值
+
+### longAccumulate源码
+
+```java
+   final void longAccumulate(long x, LongBinaryOperator fn,
+                              boolean wasUncontended) {
+       // 存储线程的probe值
+        int h;
+       // 如果getProbe()方法返回0，说明随机数未初始化
+        if ((h = getProbe()) == 0) {
+            // 使用此方法为当前线程重新计算一个hash值，强制初始化
+            ThreadLocalRandom.current(); // force initialization
+            // 重新获取probe值，hash值被重置即变成全新的线程，所以wasUncontened竞争状态为true
+            h = getProbe();
+            wasUncontended = true;
+        }
+       // 如果hash取模运算得到的Cell单元不是null,则为true，此值也可以看作是扩容意向
+        boolean collide = false;                // True if last slot nonempty
+        done: for (;;) {
+            Cell[] cs; Cell c; int n; long v;
+            // CASE1: cells已经被初始化
+            if ((cs = cells) != null && (n = cs.length) > 0) {
+                if ((c = cs[(n - 1) & h]) == null) { // 当前线程的hash值运算后映射得到的Cell单元为null,说明该Cell没有被使用
+                    if (cellsBusy == 0) {       // Try to attach new Cell Cell[]数组没有正在扩容
+                        Cell r = new Cell(x);   // Optimistically create
+                        if (cellsBusy == 0 && casCellsBusy()) { //尝试加锁，成功后cellsBusy == 1
+                            try {               // Recheck under lock
+                                Cell[] rs; int m, j;
+                                if ((rs = cells) != null &&
+                                    (m = rs.length) > 0 &&
+                                    rs[j = (m - 1) & h] == null) { // 再有锁的情况下再检测一遍之前的判断
+                                    rs[j] = r; // 将Cell单元附到Cell[]数组上
+                                    break done;
+                                }
+                            } finally {
+                                cellsBusy = 0;
+                            }
+                            continue;           // Slot is now non-empty
+                        }
+                    }
+                    collide = false;
+                }
+                else if (!wasUncontended)       // CAS already known to fail 表示cell初始化后，当前线程竞争修改失败
+                    wasUncontended = true;      // Continue after rehash 重新设置wasUncontended为true, 后面执行advanceProbe(h)重置当前线程的hash，重新循环
+                else if (c.cas(v = c.value,
+                               (fn == null) ? v + x : fn.applyAsLong(v, x))) // 说明当前线程对应的数组中已经存在数据，也重置过hash值，这时通过CAS操作尝试对当前数中的value进行累加x操作
+                    break;
+                // 如果n大于CPU最大数量，不可扩容，并通过下面的h=advanceProbe(h)方法修改线程的probe再重新尝试
+                else if (n >= NCPU || cells != cs)
+                    collide = false;            // At max size or stale
+                else if (!collide)
+                    collide = true;
+                else if (cellsBusy == 0 && casCellsBusy()) {
+                    try {
+                        if (cells == cs)        // Expand table unless stale
+                            // 扩容为原来的2倍
+                            cells = Arrays.copyOf(cs, n << 1);
+                    } finally {
+                        cellsBusy = 0;
+                    }
+                    collide = false;
+                    continue;                   // Retry with expanded table
+                }
+                h = advanceProbe(h);
+            }
+            // CASE2: cells没有加锁且没有初始化，则尝试对它进行加锁，并初始化cells数组
+            else if (cellsBusy == 0 && cells == cs && casCellsBusy()) {
+                // 两个cells == cs类似于单例模式的双重锁校验
+                try {                           // Initialize table
+                    if (cells == cs) {
+                        Cell[] rs = new Cell[2];
+                        rs[h & 1] = new Cell(x); // h & 1的值只有0或者1
+                        cells = rs;
+                        break done;
+                    }
+                } finally {
+                    cellsBusy = 0;
+                }
+            }
+            // Fall back on using base
+            // CASE3: cells正在进行初始化，则尝试直接在基数base上进行累加操作
+            else if (casBase(v = base,
+                             (fn == null) ? v + x : fn.applyAsLong(v, x)))
+                break done;
+        }
+    }
+
+CASE1: Cell[]数组已经初始化
+CASE2: Cell[]数组未初始化（首次新建）
+CASE3: Cell[]数组正在初始化
 ```
 

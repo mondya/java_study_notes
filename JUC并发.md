@@ -1290,3 +1290,72 @@ CASE2: Cell[]数组未初始化（首次新建）
 CASE3: Cell[]数组正在初始化
 ```
 
+# ThreadLocal
+
+ThreadLocal提供线程局部变量。这些变量与正常的变量不同，因为每一个线程在访问ThreadLocal实例的时候（通过get或者set方法）都有自己的，独立初始化变量副本。ThreadLocal实例通常是类中的私有静态字段，使用它的目的是希望将状态（例如，用户ID或者事务ID）与线程关联起来。
+
+```java
+class House {
+    int saleCount = 0;
+    
+    public synchronized void saleHouse() {
+        saleCount++;
+    }
+    
+    ThreadLocal<Integer> saleVolume = ThreadLocal.withInitial(() -> 0);
+    
+    public void saleVolumeByThreadLocal() {
+        saleVolume.set(1 + saleVolume.get());
+    }
+}
+
+public class ThreadLocalDemo {
+    
+    
+    public static void main(String[] args) {
+        House house = new House();
+
+        for (int i = 1; i <= 5; i++) {
+            new Thread(() -> {
+                int size = new Random().nextInt(5) + 1;
+                System.out.println(size);
+                                try {
+                    for (int j = 1; j<= size; j++) {
+                        house.saleHouse();
+                        house.saleVolumeByThreadLocal();
+                    }
+                    System.out.println("线程" + Thread.currentThread().getName() + "卖出" + house.saleVolume.get());
+                } finally {
+                    house.saleVolume.remove();
+                }
+            }).start();
+        }
+
+        try {
+            Thread.sleep(200);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        System.out.println("总数：" + house.saleCount);
+        
+    }
+}
+
+// 结果
+3
+3
+1
+1
+1
+线程Thread-1卖出1
+线程Thread-3卖出1
+线程Thread-4卖出3
+线程Thread-0卖出3
+线程Thread-2卖出1
+总数：9
+```
+
+## 注意点
+
+必须回收自定义的ThreadLocal变量，尤其在多线程环境下，线程经常会被复用，如果不清理自定义的ThreadLocal变量，可能会影响后续业务逻辑和造成内存泄漏等问题。尽量在代码中使用try-finally块进行回收。

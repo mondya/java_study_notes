@@ -1359,3 +1359,205 @@ public class ThreadLocalDemo {
 ## 注意点
 
 必须回收自定义的ThreadLocal变量，尤其在多线程环境下，线程经常会被复用，如果不清理自定义的ThreadLocal变量，可能会影响后续业务逻辑和造成内存泄漏等问题。尽量在代码中使用try-finally块进行回收。
+
+```java
+public class ThreadLocalDemo2 {
+    
+    public static void main(String[] args) {
+
+        MyData myData = new MyData();
+        ExecutorService threadPool = Executors.newFixedThreadPool(3);
+
+        for (int i = 0; i < 10; i++) {
+            CompletableFuture.runAsync(() -> {
+                Integer before = myData.threadLocal.get();
+                myData.add();
+                Integer after = myData.threadLocal.get();
+
+                System.out.println(Thread.currentThread() + "> before: " + before + " after: " + after);
+            }, threadPool);
+        }
+        
+        threadPool.shutdown();
+    }
+}
+
+class MyData {
+    ThreadLocal<Integer> threadLocal = ThreadLocal.withInitial(() -> 0);
+    
+    public void add() {
+        threadLocal.set(1 + threadLocal.get());
+    }
+}
+
+// 执行结果：相同线程自己的threadLocal值累加了
+
+Thread[pool-1-thread-2,5,main]> before: 0 after: 1
+Thread[pool-1-thread-3,5,main]> before: 0 after: 1
+Thread[pool-1-thread-1,5,main]> before: 0 after: 1
+Thread[pool-1-thread-2,5,main]> before: 1 after: 2
+Thread[pool-1-thread-3,5,main]> before: 1 after: 2
+Thread[pool-1-thread-2,5,main]> before: 2 after: 3
+Thread[pool-1-thread-1,5,main]> before: 1 after: 2
+Thread[pool-1-thread-2,5,main]> before: 3 after: 4
+Thread[pool-1-thread-3,5,main]> before: 2 after: 3
+Thread[pool-1-thread-1,5,main]> before: 2 after: 3
+```
+
+## 源码
+
+ThreadLocal的set和get方法通过静态内部类ThreadLocalMap实现，ThreadLocalMap以当前ThreadLocal实例为key，任意对象为value的Entry对象，内部结构与HashMap相似
+
+JVM内部维护了一个线程版的Map<ThreadLocal, Value>，通过set方法，把threadLocal对象自己当作key，放入ThreadLocalMap中
+
+## 内存泄漏
+
+内存泄漏：不再会被使用的对象或者变量占用的内存不能被回收，即内存泄漏
+
+## 强引用
+
+当内存不足时，JVM开始垃圾回收，对于强引用对象，==即使出现OOM也不会对该对象进行回收==。在Java中，最常见的就是强引用，显示的赋值成null，可以使JVM回收该对象
+
+```java
+public class ReferenceDemo {
+    public static void main(String[] args) {
+        MyObject myObject = new MyObject();
+
+        System.out.println("gc before" + myObject);
+        
+        myObject = null;
+        
+        System.gc();
+        
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("gc after" + myObject);
+    }
+}
+
+
+class MyObject {
+    @Override
+    protected void finalize() throws Throwable {
+        System.out.println("------invoke finalize method");
+    }
+}
+
+// 执行结果
+gc beforeThread.reference.MyObject@58651fd0
+------invoke finalize method
+gc afternull
+```
+
+## 软引用
+
+软引用相对强引用弱化了一些引用，需要用java.lang.ref.SoftReference类来实现。对于只有软引用的对象来说，当系统内存充足时它不会被回收；当系统内存不足时，会被回收。
+
+```java
+        SoftReference<MyObject> myObjectSoftReference = new SoftReference<>(new MyObject());
+        System.gc();
+        
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        
+        System.out.println("gc after 内存够用" + myObjectSoftReference.get());
+        
+        
+        try {
+            byte[] bytes = new byte[20 * 1024 * 1024]; // 20m
+        } catch (OutOfMemoryError e) {
+            System.out.println("内存不够用了");
+        } finally {
+            System.out.println("myObjectSoftReference-->" + myObjectSoftReference.get());
+        }
+
+// 结果
+gc after 内存够用Thread.reference.MyObject@58651fd0
+内存不够用了
+------invoke finalize method
+myObjectSoftReference-->null
+```
+
+## 弱引用
+
+弱引用需要用java.lang.ref.WeakReference类来实现，它比软引用生命周期更短。对于弱引用对象来说，只要垃圾回收机制运行，不管JVM的内存空间是否足够，都会回收该对象占用的内存。
+
+```java
+        WeakReference<MyObject> myObjectWeakReference = new WeakReference<>(new MyObject());
+        System.out.println("gc before 内存够用" + myObjectWeakReference.get());
+        
+        System.gc();
+        
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("gc after 内存够用" + myObjectWeakReference.get());
+
+// 结果
+gc before 内存够用Thread.reference.MyObject@58651fd0
+------invoke finalize method
+gc after 内存够用null
+```
+
+## 虚引用
+
+1.虚引用必须和引用队列（ReferenceQueue）联合使用
+
+虚引用需要java.lang.ref.PhantomReference类来实现，虚引用不会决定对象的生命周期。如果一个对象持有虚引用，那么它就和没有任何引用一样，在任何时候都能够被垃圾回收机制回收，它不能单独使用，==虚引用必须和引用队列(ReferenceQueue)联合使用==
+
+2.PhantomReference的get方法总是返回Null
+
+虚引用的主要作用是跟踪对象被垃圾回收的状态。仅提供了一种确保对象被finalize以后，做某些事的通知机制。==PhantomReference对象总是返回null，因此无法访问对应的引用对象==
+
+3.处理监控通知使用
+
+设置虚引用的目的是为了在对象被垃圾回收后收到系统通知以便于后续进一步处理
+
+```java
+        MyObject myObject = new MyObject();
+        ReferenceQueue<MyObject> referenceQueue = new ReferenceQueue<>();
+        PhantomReference<MyObject> phantomReference = new PhantomReference<>(myObject, referenceQueue);
+        
+        List<byte[]> list = new ArrayList<>();
+        
+        new Thread(() -> {
+            while (true) {
+                list.add(new byte[1 * 1024 * 1024]);
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                System.out.println(phantomReference.get() + "list add ok");
+            }
+        }).start();
+        
+        new Thread(() -> {
+            while (true) {
+                Reference<? extends MyObject> poll = referenceQueue.poll();
+                if (poll != null) {
+                    System.out.println("对象回收");
+                    break;
+                }
+            }
+        }).start();
+
+// 执行结果
+nulllist add ok
+------invoke finalize method
+nulllist add ok
+
+Exception: java.lang.OutOfMemoryError thrown from the UncaughtExceptionHandler in thread "Thread-0"
+对象回收
+```
+

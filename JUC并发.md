@@ -1007,6 +1007,14 @@ class MyVar {
         }
     }
 }
+
+// 执行结果
+Thread-0	...start init
+Thread-3	已经有线程在进行Init操作
+Thread-4	已经有线程在进行Init操作
+Thread-2	已经有线程在进行Init操作
+Thread-1	已经有线程在进行Init操作
+Thread-0	over init
 ```
 
 ## 原子类LongAdder和LongAccumulator
@@ -1031,6 +1039,10 @@ public class LongAdderDemo {
         System.out.println(longAccumulator.get());
     }
 }
+
+// 执行结果 
+3
+12
 ```
 
 ### 点赞案例
@@ -1175,6 +1187,7 @@ longAdder.increment()过程--add(1L) --> longAccumulae(x, null, uncontended) -->
     public void add(long x) {
         Cell[] cs; long b, v; int m; Cell c;
         if ((cs = cells) != null || !casBase(b = base, b + x)) {
+            // uncontended 无竞争
             boolean uncontended = true;
             if (cs == null || (m = cs.length - 1) < 0 ||
                 (c = cs[getProbe() & m]) == null ||

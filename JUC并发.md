@@ -1233,7 +1233,7 @@ longAdder.increment()过程--add(1L) --> longAccumulae(x, null, uncontended) -->
             Cell[] cs; Cell c; int n; long v;
             // CASE1: cells已经被初始化
             if ((cs = cells) != null && (n = cs.length) > 0) {
-                if ((c = cs[(n - 1) & h]) == null) { // 当前线程的hash值运算后映射得到的Cell单元为null,说明该Cell没有被使用
+                if ((c = cs[(n - 1) & h]) == null) { // 当前线程的hash值运算后映射得到的Cell单元为null,说明该Cell没有被使用 (n - 1) & h：结果是一个介于0和n-1之间的索引值
                     if (cellsBusy == 0) {       // Try to attach new Cell Cell[]数组没有正在扩容
                         Cell r = new Cell(x);   // Optimistically create
                         if (cellsBusy == 0 && casCellsBusy()) { //尝试加锁，成功后cellsBusy == 1
@@ -1574,3 +1574,37 @@ Exception: java.lang.OutOfMemoryError thrown from the UncaughtExceptionHandler i
 对象回收
 ```
 
+## ThreadLocal为什么使用弱引用
+
+```java
+    public static void func1() {
+        ThreadLocal<String> t1 = new ThreadLocal<>();
+        t1.set("xhh@gmail.com");
+        t1.get();
+    }
+```
+
+当func1方法执行完毕后，栈帧销毁强引用t1被清除，但是此时线程的ThreadLocalMap里某个entry的key引用还指向这个对象
+
+若这个key的引用是强引用，就会导致key指向的ThreadLocal对象及v指向的对象不能被gc回收，造成内存泄漏
+
+若这个key引用是弱引用就大概率减少内存泄漏问题，使ThreadLocal对象在方法执行完毕后顺利被回收且Entry的key引用指向为Null
+
+![image-20231126195846691](.\images\image-20231126195846691.png)
+
+- 为ThreadLocal变量赋值，实际上就是当前的Entry(threadLocal当前变量为key，值为value)放入ThreadLocalMap中。Entry的key是弱引用，当threadLocal外部强引用被置为null（t1=null），那么系统gc时，根据可达性分析，这个threadLocal实例就没有任何一条链路能够引用到它，这个threadLocal会被回收。==于是，ThreadLocalMap中就会出现key为null的Entry，就没有办法访问这些key为nullde Entry的value，如果当前线程长时间没有结束，这些key为Null的Entry的value会一直存在一条强引用链：ThreadRef -> Thread -> ThreadLocalMap -> Entry -> value永远无法回收，造成内存泄漏==。
+- 虽然弱引用，保证了key指向的ThreadLocal对象能够被及时回收，但是v指向的value对象是需要ThreadLocalMap调用get, set时发现key为null时才会去回收整个entry, value，==因此弱引用不能100%保证内存不泄漏，要在不使用某个ThreadLocal后，手动调用remove方法来删除它==。尤其还要注意多线程线程复用情况，线程复用导致ThreadLocalMap对象重复使用。
+
+## 建议
+
+### 使用static修饰
+
+ThreadLocal对象使用static修饰，ThreadLocal无法解决共享对象的更新问题。ThreadLocal变量是针对一个线程内所有操作共享，所以设置为静态变量，所有此类实例共享此静态变量，也就是说在类第一次被使用时装载，只分配一块存储空间，所有此类的对象（线程内定义的）都可以操控这个变量。
+
+## 总结
+
+- ThreadLocal并不解决线程间共享数据的问题
+- ThreadLocal适用于变量在线程间隔离且在方法间共享的场景
+- ThreadLocal通过隐式的在不同线程内创建独立实例副本避免了实例线程安全的问题
+- 每个线程持有一个只属于自己的专属Map并维护了ThreadLocal对象与具体实例的映射，该Map由于只被持有它的线程访问，故不存在线程安全以及锁的问题
+- ThreadLocalMap的Entry对ThreadLocal的引用为弱引用，避免了ThreadLocal对象无法被回收的问题

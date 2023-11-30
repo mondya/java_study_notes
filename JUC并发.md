@@ -1615,3 +1615,63 @@ jvm虚拟机相关
 
 # Synchronized与锁升级
 
+高并发时，同步调用应该去考量锁的性能损耗。能用无锁数据结构，就不要用锁；能锁区块，就不要锁整个方法体；能用对象锁，就不要用类锁。
+
+锁的升级过程：无锁->偏向锁->轻量级锁->重量级锁
+
+java的线程是映射到操作系统原生线程之上的，如果要阻塞或唤醒一个线程就==需要操作系统介入==，需要在户态与核心态之间切换，这种切换会消耗大量的系统资源，因为用户态与内核态都有各自专用的内存空间，专用的寄存器等，用户态切换至内核态需要传递给许多变量、参数给内核，内核也需要保护好用户态在切换时的一些寄存器值、变量等，以便内核态调用结束后切换回用户态继续工作。
+
+在Java早期版本中，==Synchronized属于重量级锁，效率低下，因为监视器锁 (monitor)是依赖于底层的操作系统的Mutex Lock(系统互斥量)来实现的==，挂起线程和恢复线程都需要转入内核态去完成，阳寒或唤醒一个Jaa线程需要操作系统切换CPU状态来完成，这种状态切换需要耗费处理器间，如果同步代码块中内容过于简单，这种切换的时间可能比用户代码执行的时间还长”，时间成本相对较高，这也是为什么早期的synchronized效率低的原因Java 6之后，为了减少获得锁和释放锁所带来的性能消耗，==引入了轻量级锁和偏向锁==
+
+## Monitor与Java对象以及线程如何关联
+
+- 如果一个Java对象被某个线程锁住，则该java对象的mark word字段中LockWord指向monitor的起始地址
+- Monitor的Owner字段会存放拥有相关联对象锁的线程id
+- Muter Lock的切换需要从用户态转换到核心态中，因此状态转换需要耗费很多的处理器时间
+
+## 锁状态图
+
+![image-20231130202448145](.\images\image-20231130202448145.png)
+
+- 偏向锁：MarkWord存储的是偏向的线程ID
+- 轻量锁：MarkWord存储的是指向线程栈中LockRecord的指针
+- 重量锁：MarkWord存储的是指向堆中的monitor对象的指针
+
+## 无锁
+
+```java
+    public static void main(String[] args) {
+        Object o = new Object();
+//        System.out.println("hashCode=" + o.hashCode());
+        System.out.println(ClassLayout.parseInstance(o).toPrintable());
+    }
+```
+
+在Jdk11中结果
+
+```java
+# WARNING: Unable to get Instrumentation. Dynamic Attach failed. You may add this JAR as -javaagent manually, or supply -Djdk.attach.allowAttachSelf
+java.lang.Object object internals:
+ OFFSET  SIZE   TYPE DESCRIPTION                               VALUE
+      0     4        (object header)                           05 00 00 00 (00000101 00000000 00000000 00000000) (5)
+      4     4        (object header)                           00 00 00 00 (00000000 00000000 00000000 00000000) (0)
+      8     4        (object header)                           00 10 00 00 (00000000 00010000 00000000 00000000) (4096)
+     12     4        (loss due to the next object alignment)
+Instance size: 16 bytes
+Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
+```
+
+在jdk8中结果
+
+```java
+java.lang.Object object internals:
+ OFFSET  SIZE   TYPE DESCRIPTION                               VALUE
+      0     4        (object header)                           01 00 00 00 (00000001 00000000 00000000 00000000) (1)
+      4     4        (object header)                           00 00 00 00 (00000000 00000000 00000000 00000000) (0)
+      8     4        (object header)                           e5 01 00 f8 (11100101 00000001 00000000 11111000) (-134217243)
+     12     4        (loss due to the next object alignment)
+Instance size: 16 bytes
+Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
+```
+
+![image-20231130224155989](.\images\image-20231130224155989.png)

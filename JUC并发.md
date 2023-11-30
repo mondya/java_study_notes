@@ -1608,3 +1608,10 @@ ThreadLocal对象使用static修饰，ThreadLocal无法解决共享对象的更�
 - ThreadLocal通过隐式的在不同线程内创建独立实例副本避免了实例线程安全的问题
 - 每个线程持有一个只属于自己的专属Map并维护了ThreadLocal对象与具体实例的映射，该Map由于只被持有它的线程访问，故不存在线程安全以及锁的问题
 - ThreadLocalMap的Entry对ThreadLocal的引用为弱引用，避免了ThreadLocal对象无法被回收的问题
+
+# 对象内存布局
+
+jvm虚拟机相关
+
+# Synchronized与锁升级
+

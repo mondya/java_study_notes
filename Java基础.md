@@ -22,7 +22,7 @@ public class Welcome {
 
 ## 一些DOS命令
 
-![image-20201026204009775](D:\images\image-20201026204009775.png)
+![image-20201026204009775](D:.\images\image-20201026204009775.png)
 
 
 

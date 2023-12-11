@@ -1675,3 +1675,75 @@ Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
 ```
 
 ![image-20231130224155989](.\images\image-20231130224155989.png)
+
+## 偏向锁
+
+在实际情况下，锁总是同一个线程持有，很少发生竞争，也就是说==锁总是被第一个占用他的线程拥有，这个线程就是锁的偏向线程==
+
+那么只需要在锁第一次被拥有的时候，记录下偏向线程标识ID，这样偏向线程就一直持有着锁(后续这个线程进入和退出这段加了同步锁的代码块时，==不需要再次加锁和释放锁==。而是直接会去检查锁的MarkWord里面是不是放的自己的线程ID)。
+
+==如果相等==，表示偏向锁是偏向于当前线程的，就不需要再尝试获得锁了，直到竞争发生才释放锁。以后每次同步，检查锁的偏向线程ID与当前线程ID是否一致，如果一致直接进入同步。无需每次加锁解锁都去CAS更新对象头。==如果自始至终使用锁的线程只有一个==，很明显偏向锁几乎没有额外开销，性能极高。
+==如果不等==，表示发生了竞争，锁已经不是总是偏向于同一个线程了，这个时候会尝试使用CAS来替换MarkWord里面的线程ID为新线程的ID，
+==竞争成功==，表示之前的线程不存在了，MarkWord里面的线程ID为新线程的ID，锁不会升级，仍然为偏向锁: 
+
+==竞争失败==，这时候可能需要升级变为轻量级锁，才能保证线程间公平竞争锁。
+
+注意，偏向锁只有遇到其他线程尝试竞争偏向锁时，持有偏向锁的线程才会释放锁，线程是不会主动释放偏向锁的。
+
+```java
+    public static void main(String[] args) {
+        // 偏向锁默认4秒后开启
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        Object o = new Object();
+//        System.out.println("hashCode=" + o.hashCode());
+        System.out.println(ClassLayout.parseInstance(o).toPrintable());
+    }
+```
+
+jdk8结果
+
+```java
+java.lang.Object object internals:
+ OFFSET  SIZE   TYPE DESCRIPTION                               VALUE
+      0     4        (object header)                           05 00 00 00 (00000101 00000000 00000000 00000000) (5)
+      4     4        (object header)                           00 00 00 00 (00000000 00000000 00000000 00000000) (0)
+      8     4        (object header)                           e5 01 00 f8 (11100101 00000001 00000000 11111000) (-134217243)
+     12     4        (loss due to the next object alignment)
+Instance size: 16 bytes
+Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
+```
+
+获取线程id
+
+```java
+    public static void main(String[] args) {
+        Object o = new Object();
+//        System.out.println("hashCode=" + o.hashCode());
+        new Thread(() -> {
+            synchronized (o) {
+                System.out.println(ClassLayout.parseInstance(o).toPrintable());
+            }
+        }).start();
+    }
+```
+
+jdk8
+
+```java
+java.lang.Object object internals:
+ OFFSET  SIZE   TYPE DESCRIPTION                               VALUE
+      0     4        (object header)                           10 f5 35 2b (00010000 11110101 00110101 00101011) (724956432)
+      4     4        (object header)                           00 00 00 00 (00000000 00000000 00000000 00000000) (0)
+      8     4        (object header)                           e5 01 00 f8 (11100101 00000001 00000000 11111000) (-134217243)
+     12     4        (loss due to the next object alignment)
+Instance size: 16 bytes
+Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
+```
+
+### 偏向锁的撤销
+
+偏向锁使用一种等到竞争出现才释放锁的机制，只有当其他线程竞争锁时，持有偏向锁的原来线程才会被撤销。==撤销需要等待全局安全点（该时间点上没有字节码正在执行）==，同时检查持有偏向锁的线程是否还在执行。

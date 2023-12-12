@@ -1621,7 +1621,7 @@ jvm虚拟机相关
 
 java的线程是映射到操作系统原生线程之上的，如果要阻塞或唤醒一个线程就==需要操作系统介入==，需要在户态与核心态之间切换，这种切换会消耗大量的系统资源，因为用户态与内核态都有各自专用的内存空间，专用的寄存器等，用户态切换至内核态需要传递给许多变量、参数给内核，内核也需要保护好用户态在切换时的一些寄存器值、变量等，以便内核态调用结束后切换回用户态继续工作。
 
-在Java早期版本中，==Synchronized属于重量级锁，效率低下，因为监视器锁 (monitor)是依赖于底层的操作系统的Mutex Lock(系统互斥量)来实现的==，挂起线程和恢复线程都需要转入内核态去完成，阳寒或唤醒一个Jaa线程需要操作系统切换CPU状态来完成，这种状态切换需要耗费处理器间，如果同步代码块中内容过于简单，这种切换的时间可能比用户代码执行的时间还长”，时间成本相对较高，这也是为什么早期的synchronized效率低的原因Java 6之后，为了减少获得锁和释放锁所带来的性能消耗，==引入了轻量级锁和偏向锁==
+在Java早期版本中，==Synchronized属于重量级锁，效率低下，因为监视器锁 (monitor)是依赖于底层的操作系统的Mutex Lock(系统互斥量)来实现的==，挂起线程和恢复线程都需要转入内核态去完成，阻塞或唤醒一个Java线程需要操作系统切换CPU状态来完成，这种状态切换需要耗费处理器时间，如果同步代码块中内容过于简单，这种切换的时间可能比用户代码执行的时间还长，时间成本相对较高，这也是为什么早期的synchronized效率低的原因，Java 6之后，为了减少获得锁和释放锁所带来的性能消耗，==引入了轻量级锁和偏向锁==
 
 ## Monitor与Java对象以及线程如何关联
 
@@ -1676,7 +1676,7 @@ Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
 
 ![image-20231130224155989](.\images\image-20231130224155989.png)
 
-## 偏向锁
+## 偏向锁（Java15逐步废弃偏向锁）
 
 在实际情况下，锁总是同一个线程持有，很少发生竞争，也就是说==锁总是被第一个占用他的线程拥有，这个线程就是锁的偏向线程==
 
@@ -1747,3 +1747,107 @@ Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
 ### 偏向锁的撤销
 
 偏向锁使用一种等到竞争出现才释放锁的机制，只有当其他线程竞争锁时，持有偏向锁的原来线程才会被撤销。==撤销需要等待全局安全点（该时间点上没有字节码正在执行）==，同时检查持有偏向锁的线程是否还在执行。
+
+## 轻量级锁
+
+多线程竞争，但是任意时刻最多只有一个线程竞争，即不存在锁竞争太过激烈的情况，也就没有线程阻塞。
+
+关闭偏向锁，可以直接进入轻量级锁：`-XX:-UseBiasedLocking`
+
+### 自旋达到一定次数和程度
+
+Java6之前：默认情况下自旋的次数为10次
+
+Java6之后：使用自适应自旋锁。原理：线程如果自旋成功了，那么下次自旋的最大次数会增加，因为JVM认为既然上次成功了，那么这一次也会有很大概率成功。反之，如果很少自旋成功，那么下次会减少自旋的次数甚至不自旋，避免CPU空转，而是去升级成重量级锁。
+
+## 轻量级锁和偏向锁的区别
+
+- 争夺轻量级锁失败时，自旋尝试抢占锁
+- 轻量级锁每次退出同步块都需要释放锁，而偏向锁是在竞争发生时才释放锁，所以轻量级锁更加消耗性能
+
+## 重量级锁
+
+原理：Java中synchronized的重量级锁，是基于进入和退出Monitor对象来实现的。在编译时会将同步块的开始位置插入monitor enter指令，在结束位置插入monitor exit指令。当线程执行到monitor enter指令时，会尝试获取对象所对应的Monitor所有权，如果获取到了，即获取到锁，会在Monitor的owner中存放当前线程的ID，这样它将处于锁定状态，除非退出同步块，否则其他线程无法获取到这个Monitor。
+
+## 计算一致性hashCode直接升级轻量级锁
+
+```java
+    public static void main(String[] args) {
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        Object o = new Object();
+        System.out.println("偏向锁");
+        System.out.println(ClassLayout.parseInstance(o).toPrintable());
+        
+        o.hashCode();
+        
+        synchronized (o) {
+            System.out.println("偏向锁计算过hashCode后升级为轻量级锁");
+            System.out.println(ClassLayout.parseInstance(o).toPrintable());
+        }
+    }
+
+// 结果
+偏向锁
+java.lang.Object object internals:
+ OFFSET  SIZE   TYPE DESCRIPTION                               VALUE
+      0     4        (object header)                           05 00 00 00 (00000101 00000000 00000000 00000000) (5)
+      4     4        (object header)                           00 00 00 00 (00000000 00000000 00000000 00000000) (0)
+      8     4        (object header)                           e5 01 00 f8 (11100101 00000001 00000000 11111000) (-134217243)
+     12     4        (loss due to the next object alignment)
+Instance size: 16 bytes
+Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
+
+偏向锁计算过hashCode后升级为轻量级锁
+java.lang.Object object internals:
+ OFFSET  SIZE   TYPE DESCRIPTION                               VALUE
+      0     4        (object header)                           18 f2 7c 03 (00011000 11110010 01111100 00000011) (58520088)
+      4     4        (object header)                           00 00 00 00 (00000000 00000000 00000000 00000000) (0)
+      8     4        (object header)                           e5 01 00 f8 (11100101 00000001 00000000 11111000) (-134217243)
+     12     4        (loss due to the next object alignment)
+Instance size: 16 bytes
+Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
+```
+
+## 偏向锁遇到一致性hashCode请求膨胀成重量级锁
+
+```java
+    public static void main(String[] args) {
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        Object o = new Object();
+        
+        synchronized (o) {
+            o.hashCode();
+            System.out.println("偏向锁过程中遇到一致性hash计算请求，撤销偏向锁模式，膨胀成重量级锁");
+            System.out.println(ClassLayout.parseInstance(o).toPrintable());
+        }
+    }
+
+// 结果
+偏向锁过程中遇到一致性hash计算请求，撤销偏向锁模式，膨胀成重量级锁
+java.lang.Object object internals:
+ OFFSET  SIZE   TYPE DESCRIPTION                               VALUE
+      0     4        (object header)                           da 7d c9 26 (11011010 01111101 11001001 00100110) (650739162)
+      4     4        (object header)                           00 00 00 00 (00000000 00000000 00000000 00000000) (0)
+      8     4        (object header)                           e5 01 00 f8 (11100101 00000001 00000000 11111000) (-134217243)
+     12     4        (loss due to the next object alignment)
+Instance size: 16 bytes
+Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
+```
+
+## 总结
+
+![image-20231212212118940](.\images\image-20231212212118940.png)
+
+偏向锁：适用于单线程情况，在不存在锁竞争的时候进入同步方法/代码块则使用偏向锁
+
+轻量级锁：适用于竞争较不激烈的情况（和乐观锁的使用范围类似），存在竞争时升级为轻量级锁，轻量级锁采用的是自旋锁，如果同步方法/代码块执行时间很短，采用轻量级锁虽然会占用CPU资源但是相比使用重量级锁还是更加高效
+
+重量级锁：适用于竞争激烈的场景，如果同步方法/代码块执行时间很长，那么使用轻量级锁自旋带来的性能损耗就比使用重量级锁更加严重，这时候就需要升级为重量级锁。

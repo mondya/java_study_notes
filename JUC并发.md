@@ -1862,3 +1862,175 @@ AQS使用一个volatile的int类型的成员变量来表示同步状态，通过
 
 - 锁，面向锁的使用者：定义了程序员和锁交互的使用层API，隐藏了实现细节，调用者只需要调用
 - 同步器，面向锁的实现者：DougLee提出统一规范并简化了锁的实现，将其抽象出来屏蔽了同步状态管理，同步队列的管理和维护，阻塞线程排队和通知，唤醒机制等，是一切锁和同步组件实现的--==公共基础部分==
+
+## Node节点
+
+![image-20231214215920809](.\images\image-20231214215920809.png)
+
+## 源码
+
+### tryAcquire(args)
+
+以ReentrantLock为例
+
+```java
+    public void lock() {
+        sync.acquire(1);
+    }
+
+    public final void acquire(int arg) {
+        if (!tryAcquire(arg) &&
+            acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
+            selfInterrupt();
+    }
+```
+
+tryAcquire方法在公平锁中的实现
+
+```java
+        @ReservedStackAccess
+        protected final boolean tryAcquire(int acquires) {
+            final Thread current = Thread.currentThread();
+            int c = getState();
+            if (c == 0) {
+                if (!hasQueuedPredecessors() &&
+                    compareAndSetState(0, acquires)) {
+                    setExclusiveOwnerThread(current);
+                    return true;
+                }
+            }
+            else if (current == getExclusiveOwnerThread()) {
+                int nextc = c + acquires;
+                if (nextc < 0)
+                    throw new Error("Maximum lock count exceeded");
+                setState(nextc);
+                return true;
+            }
+            return false;
+        }
+```
+
+tryAcquire方法在非公平锁中的实现
+
+```java
+        @ReservedStackAccess
+        final boolean nonfairTryAcquire(int acquires) {
+            final Thread current = Thread.currentThread();
+            int c = getState();
+            if (c == 0) {
+                if (compareAndSetState(0, acquires)) {
+                    setExclusiveOwnerThread(current);
+                    return true;
+                }
+            }
+            else if (current == getExclusiveOwnerThread()) {
+                int nextc = c + acquires;
+                if (nextc < 0) // overflow
+                    throw new Error("Maximum lock count exceeded");
+                setState(nextc);
+                return true;
+            }
+            return false;
+        }
+```
+
+公平锁和非公平锁的Lock方法唯一的区别就是公平锁在获取同步状态时多了一个限制条件：hasQueuedPredecessors()，这个方法是公平锁加锁时判断等待队列中是否存在有效节点的方法
+
+- 公平锁讲究先来先到，线程在获取锁时，如果这个锁的等待队列中已经有线程在等待，那么当前线程就会进入等待队列中；
+- 非公平锁：不管是否有等待队列，如果可以获取锁，则立刻占有锁对象，也就是说队列的第一个排队线程苏醒后，不一定就是排头的这个线程获得锁，它还需要参加竞争锁（存在线程竞争的情况下）
+
+### addWaiter(Node.EXCLUSIVE)
+
+jdk11
+
+```java
+    private Node addWaiter(Node mode) {
+        Node node = new Node(mode);
+        // 当队列中一个节点都没有时，进行两次for循环
+        for (;;) {
+            Node oldTail = tail;
+            // 第二次进入循环时,oldTail不为空
+            if (oldTail != null) {
+                // 把新进入的节点node的前节点指针指向虚拟节点h
+                node.setPrevRelaxed(oldTail);
+                if (compareAndSetTail(oldTail, node)) {
+                    把虚拟节点h的尾节点指针指向新进入的节点node
+                    oldTail.next = node;
+                    return node;
+                }
+            } else {
+                // 第一次for循环oldTail为空
+                initializeSyncQueue();
+            }
+        }
+    }
+
+
+// 这一步的目的是在队列中生成一个虚拟的h = new Node()节点，把头节点(head)和尾节点(tail)都指向h
+    private final void initializeSyncQueue() {
+        Node h;
+        if (HEAD.compareAndSet(this, null, (h = new Node())))
+            tail = h;
+    }
+```
+
+###  acquireQueued(final Node node, int arg)
+
+```java
+    final boolean acquireQueued(final Node node, int arg) {
+        boolean interrupted = false;
+        try {
+            for (;;) {
+                // p等于虚拟节点h
+                final Node p = node.predecessor();
+                if (p == head && tryAcquire(arg)) { // 再次去抢占一次锁
+                    setHead(node);
+                    p.next = null; // help GC
+                    return interrupted;
+                }
+                // p不是头节点或者再次抢占失败
+                if (shouldParkAfterFailedAcquire(p, node))
+                    // 挂起当前线程
+                    interrupted |= parkAndCheckInterrupt();
+            }
+        } catch (Throwable t) {
+            cancelAcquire(node);
+            if (interrupted)
+                selfInterrupt();
+            throw t;
+        }
+    }
+
+
+
+    private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
+        // 第一次进入waitStatus = 0, 第二次进入waitStatus=-1,返回true
+        int ws = pred.waitStatus;
+        if (ws == Node.SIGNAL) // -1
+            /*
+             * This node has already set status asking a release
+             * to signal it, so it can safely park.
+             */
+            return true;
+        if (ws > 0) {
+            /*
+             * Predecessor was cancelled. Skip over predecessors and
+             * indicate retry.
+             */
+            do {
+                node.prev = pred = pred.prev;
+            } while (pred.waitStatus > 0);
+            pred.next = node;
+        } else {
+            /*
+             * waitStatus must be 0 or PROPAGATE.  Indicate that we
+             * need a signal, but don't park yet.  Caller will need to
+             * retry to make sure it cannot acquire before parking.
+             */
+            // 虚拟节点waitStatus=-1
+            pred.compareAndSetWaitStatus(ws, Node.SIGNAL);
+        }
+        return false;
+    }
+```
+

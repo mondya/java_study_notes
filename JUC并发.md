@@ -1984,13 +1984,14 @@ jdk11
                 // p等于虚拟节点h
                 final Node p = node.predecessor();
                 if (p == head && tryAcquire(arg)) { // 再次去抢占一次锁
-                    setHead(node);
-                    p.next = null; // help GC
+                    setHead(node); // 队列中的等待线程抢占锁后需要一个哨兵（虚拟）节点，此时node作为虚拟节点存在
+                    p.next = null; // help GC，上一个头节点的next设置为空，gc
                     return interrupted;
                 }
                 // p不是头节点或者再次抢占失败
                 if (shouldParkAfterFailedAcquire(p, node))
                     // 挂起当前线程
+                    // 对应unlock方法唤醒线程，返回false
                     interrupted |= parkAndCheckInterrupt();
             }
         } catch (Throwable t) {
@@ -2034,3 +2035,68 @@ jdk11
     }
 ```
 
+### unlock()
+
+```java
+    public final boolean release(int arg) {
+        if (tryRelease(arg)) {
+            Node h = head;
+            if (h != null && h.waitStatus != 0)
+                unparkSuccessor(h);
+            return true;
+        }
+        return false;
+    }
+
+
+        @ReservedStackAccess
+        protected final boolean tryRelease(int releases) {
+            // c == 0
+            int c = getState() - releases;
+            if (Thread.currentThread() != getExclusiveOwnerThread())
+                throw new IllegalMonitorStateException();
+            boolean free = false;
+            if (c == 0) {
+                free = true;
+                // 把当前抢占的线程设置为null
+                setExclusiveOwnerThread(null);
+            }
+            // 线程持有标记设置为0
+            setState(c);
+            return free;
+        }
+
+
+
+    private void unparkSuccessor(Node node) {
+        /*
+         * If status is negative (i.e., possibly needing signal) try
+         * to clear in anticipation of signalling.  It is OK if this
+         * fails or if status is changed by waiting thread.
+         */
+        int ws = node.waitStatus;
+        if (ws < 0)
+            node.compareAndSetWaitStatus(ws, 0);
+
+        /*
+         * Thread to unpark is held in successor, which is normally
+         * just the next node.  But if cancelled or apparently null,
+         * traverse backwards from tail to find the actual
+         * non-cancelled successor.
+         */
+        Node s = node.next;
+        if (s == null || s.waitStatus > 0) {
+            s = null;
+            for (Node p = tail; p != node && p != null; p = p.prev)
+                if (p.waitStatus <= 0)
+                    s = p;
+        }
+        if (s != null)
+            // 唤醒线程
+            LockSupport.unpark(s.thread);
+    }
+```
+
+### 示例图
+
+![image-20231216231600870](.\images\image-20231216231600870.png)

@@ -1899,6 +1899,7 @@ tryAcquire方法在公平锁中的实现
                     return true;
                 }
             }
+            // 可重入锁的实现逻辑
             else if (current == getExclusiveOwnerThread()) {
                 int nextc = c + acquires;
                 if (nextc < 0)
@@ -1923,6 +1924,7 @@ tryAcquire方法在非公平锁中的实现
                     return true;
                 }
             }
+            // 可重入锁的实现
             else if (current == getExclusiveOwnerThread()) {
                 int nextc = c + acquires;
                 if (nextc < 0) // overflow
@@ -1983,7 +1985,7 @@ jdk11
             for (;;) {
                 // p等于虚拟节点h
                 final Node p = node.predecessor();
-                if (p == head && tryAcquire(arg)) { // 再次去抢占一次锁
+                if (p == head && tryAcquire(arg)) { // 再次去抢占一次锁，和公平锁的区别
                     setHead(node); // 队列中的等待线程抢占锁后需要一个哨兵（虚拟）节点，此时node作为虚拟节点存在
                     p.next = null; // help GC，上一个头节点的next设置为空，gc
                     return interrupted;

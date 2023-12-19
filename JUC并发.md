@@ -2102,3 +2102,336 @@ jdk11
 ### 示例图
 
 ![image-20231216231600870](.\images\image-20231216231600870.png)
+
+# 读写锁
+
+## 读写锁的演化
+
+![image-20231219220526801](.\images\image-20231219220526801.png)
+
+## ReentrantLock/synchronized
+
+```java
+public class ReentrantReadWriteLockDemo {
+
+    public static void main(String[] args) {
+        MyResource myResource = new MyResource();
+
+        for (int i = 0; i < 10; i++) {
+            int finalI = i;
+            new Thread(() -> myResource.write(finalI + "", "" + finalI), String.valueOf(i)).start();
+        }
+
+        for (int i = 0; i < 10; i++) {
+            int finalI = i;
+            new Thread(() -> myResource.read(finalI + ""), String.valueOf(i)).start();
+        }
+    }
+}
+
+
+class MyResource {
+    Map<String ,String> map = new HashMap<>();
+
+    ReentrantLock lock = new ReentrantLock();
+
+    ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+
+    public void write(String key, String value) {
+        lock.lock();
+
+        try {
+            System.out.println(Thread.currentThread().getName() + "：正在写入");
+            map.put(key, value);
+            try {
+                TimeUnit.MILLISECONDS.sleep(500);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            System.out.println(Thread.currentThread().getName() + ":写入完成");
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+
+
+    public void read(String key) {
+        lock.lock();
+
+        try {
+            System.out.println(Thread.currentThread().getName() + "：正在读取");
+            String s = map.get(key);
+            try {
+                TimeUnit.MILLISECONDS.sleep(200);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            System.out.println(Thread.currentThread().getName() + "完成读取:" + s);
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            lock.unlock();
+        }
+    }
+}
+
+
+// 运行结果：读写独占
+1：正在写入
+1:写入完成
+2：正在写入
+2:写入完成
+6：正在写入
+6:写入完成
+3：正在写入
+3:写入完成
+4：正在写入
+4:写入完成
+5：正在写入
+5:写入完成
+0：正在写入
+0:写入完成
+7：正在写入
+7:写入完成
+8：正在写入
+8:写入完成
+9：正在写入
+9:写入完成
+0：正在读取
+0完成读取:0
+1：正在读取
+1完成读取:1
+2：正在读取
+2完成读取:2
+3：正在读取
+3完成读取:3
+4：正在读取
+4完成读取:4
+5：正在读取
+5完成读取:5
+6：正在读取
+6完成读取:6
+7：正在读取
+7完成读取:7
+8：正在读取
+8完成读取:8
+9：正在读取
+9完成读取:9
+```
+
+## ReadWriteLock
+
+```java
+class MyResource {
+    Map<String ,String> map = new HashMap<>();
+
+    ReentrantLock lock = new ReentrantLock();
+
+    ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+
+    public void write(String key, String value) {
+        readWriteLock.writeLock().lock();
+
+        try {
+            System.out.println(Thread.currentThread().getName() + "：正在写入");
+            map.put(key, value);
+            try {
+                TimeUnit.MILLISECONDS.sleep(500);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            System.out.println(Thread.currentThread().getName() + ":写入完成");
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            readWriteLock.writeLock().unlock();
+        }
+    }
+
+
+
+    public void read(String key) {
+        readWriteLock.readLock().lock();
+
+        try {
+            System.out.println(Thread.currentThread().getName() + "：正在读取");
+            String s = map.get(key);
+            try {
+                TimeUnit.MILLISECONDS.sleep(200);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            System.out.println(Thread.currentThread().getName() + "完成读取:" + s);
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            readWriteLock.readLock().unlock();
+        }
+    }
+}
+
+// 运行结果：读取时可以共享，写入操作独占
+4：正在写入
+4:写入完成
+2：正在写入
+2:写入完成
+6：正在写入
+6:写入完成
+8：正在写入
+8:写入完成
+0：正在写入
+0:写入完成
+5：正在写入
+5:写入完成
+9：正在写入
+9:写入完成
+1：正在写入
+1:写入完成
+3：正在写入
+3:写入完成
+7：正在写入
+7:写入完成
+0：正在读取
+1：正在读取
+2：正在读取
+4：正在读取
+3：正在读取
+9：正在读取
+8：正在读取
+7：正在读取
+6：正在读取
+5：正在读取
+3完成读取:3
+1完成读取:1
+9完成读取:9
+5完成读取:5
+4完成读取:4
+6完成读取:6
+7完成读取:7
+2完成读取:2
+8完成读取:8
+0完成读取:0
+```
+
+### 读锁未结束其他写锁无法独占
+
+```java
+// 在代码后面加入
+        for (int i = 0; i < 2; i++) {
+            new Thread(() -> myResource.write("1", "1"), "新线程" + String.valueOf(i)).start();
+        }
+
+
+// 结果：读取完成之后才能进行写操作
+4：正在写入
+4:写入完成
+3：正在写入
+3:写入完成
+1：正在写入
+1:写入完成
+6：正在写入
+6:写入完成
+9：正在写入
+9:写入完成
+0：正在写入
+0:写入完成
+8：正在写入
+8:写入完成
+5：正在写入
+5:写入完成
+7：正在写入
+7:写入完成
+2：正在写入
+2:写入完成
+0：正在读取
+1：正在读取
+2：正在读取
+3：正在读取
+5：正在读取
+8：正在读取
+4：正在读取
+9：正在读取
+7：正在读取
+6：正在读取
+7完成读取:7
+4完成读取:4
+1完成读取:1
+3完成读取:3
+8完成读取:8
+6完成读取:6
+0完成读取:0
+5完成读取:5
+2完成读取:2
+9完成读取:9
+新线程0：正在写入
+新线程0:写入完成
+新线程1：正在写入
+新线程1:写入完成
+```
+
+## 锁降级
+
+遵循获取写锁，获取读锁在释放写锁的次序，写锁能够降级为读锁
+
+![image-20231219232631794](.\images\image-20231219232631794.png)
+
+```java
+public class LockDownDemo {
+
+    public static void main(String[] args) {
+        ReentrantReadWriteLock reentrantReadWriteLock = new ReentrantReadWriteLock();
+        ReentrantReadWriteLock.ReadLock readLock = reentrantReadWriteLock.readLock();
+        ReentrantReadWriteLock.WriteLock writeLock = reentrantReadWriteLock.writeLock();
+        
+//        readLock.lock();
+//        System.out.println("读取");
+//        readLock.unlock();
+        
+        writeLock.lock();
+        System.out.println("写入");
+        
+        
+        // 业务代码
+        
+        readLock.lock();
+        System.out.println("读取");
+        
+        
+        writeLock.unlock();
+        
+        readLock.unlock();
+    }
+}
+
+// 结果
+写入
+读取
+```
+
+### 不能锁升级（读锁未结束其他写锁无法独占）
+
+```java
+        readLock.lock();
+        System.out.println("读取");
+        
+        
+        writeLock.lock();
+        System.out.println("写入");
+        
+        
+        
+        writeLock.unlock();
+        
+        readLock.unlock();
+
+// 结果：项目卡住，无法进行
+```
+
+![image-20231219233045507](.\images\image-20231219233045507.png)

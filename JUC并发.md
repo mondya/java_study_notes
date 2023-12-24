@@ -2439,3 +2439,175 @@ public class LockDownDemo {
 ## 为什么需要锁降级
 
 适用于多个线程修改同一变量，一个线程中修改完变量后需要马上读取变量的场景
+
+## 邮戳锁(StamedLock)
+
+ReentrantReadWriteLock存在锁饥饿问题，使用公平策略(new ReentrantReadWriteLock(true))可以一定程度上缓解这个问题，但是公平策略是以牺牲系统吞吐量为代价的。StampedLock采用乐观锁，其他线程尝试获取写锁时==不会阻塞==，在获取乐观读锁后，还需要对结果进行校验。
+
+### 特点
+
+- 所有获取锁的方法，都返回一个邮戳（Stamp），为0表示获取失败，其余都表示成功
+- 所有释放锁的方法，都需要一个邮戳（Stamp），这个Stamp必须是和成功获取锁时得到的Stamp一致
+- StampedLock是==不可重入的==，如果一个线程已经持有了写锁，再去获取写锁时会造成死锁
+- 三种访问方式：
+  - Reading（读模式悲观）：功能和ReentrantReadWriteLock的读锁类似
+  - Writeing（写模式）：功能和ReentrantReadWriteLock的写锁类似
+  - Optimistic reading（乐观读模式）：无锁机制，类似于数据库乐观锁，支持读写并发
+
+### StampedLock = ReentrantReadWriteLock + 读的过程中允许获取写锁介入
+
+替代ReentrantReadWriteLock
+
+```java
+public class StampedLockDemo {
+    static  int number = 37;
+    static StampedLock stampedLock = new StampedLock();
+    
+    public void write() {
+        long stamp = stampedLock.writeLock();
+        System.out.println(Thread.currentThread().getName() + "写线程准备修改");
+        
+        try {
+            number = number + 13;
+        } finally {
+            stampedLock.unlockWrite(stamp);
+        }
+
+        System.out.println(Thread.currentThread().getName() + "写线程修改完毕");
+    }
+    
+    // 悲观读，读没有完成时写锁无法独占
+    public void read() {
+        long stamp = stampedLock.readLock();
+        System.out.println(Thread.currentThread().getName() + "读线程准备读取");
+
+        // 读的过程中，允许写锁的介入
+        for (int i = 0; i < 4; i++) {
+            try {
+                TimeUnit.SECONDS.sleep(1);
+                System.out.println(Thread.currentThread().getName() + "读线程睡眠1秒正在读取中");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        try {
+            int result = number;
+            System.out.println(Thread.currentThread().getName() + "读线程读取结果：" + result);
+            System.out.println("写线程没有修改成功，读锁时写锁无法介入，传统的读写互斥");
+
+        } finally {
+            stampedLock.unlockRead(stamp);
+        }
+    }
+
+    public static void main(String[] args) {
+        StampedLockDemo stampedLockDemo = new StampedLockDemo();
+        new Thread(() -> {
+            stampedLockDemo.read();
+        }, "readThread").start();
+        
+        try {
+            TimeUnit.SECONDS.sleep(1);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        new Thread(() -> {
+            System.out.println(Thread.currentThread().getName() + "come in");
+            stampedLockDemo.write();
+        }, "writeThread").start();
+    }
+}
+
+// 运行结果，读锁未结束写锁无法独占
+readThread读线程准备读取
+readThread读线程睡眠1秒正在读取中
+writeThreadcome in
+readThread读线程睡眠1秒正在读取中
+readThread读线程睡眠1秒正在读取中
+readThread读线程睡眠1秒正在读取中
+readThread读线程读取结果：37
+写线程没有修改成功，读锁时写锁无法介入，传统的读写互斥
+writeThread写线程准备修改
+writeThread写线程修改完毕
+```
+
+允许写锁介入
+
+```java
+    public void tryOptimisticRead() {
+        long stamp = stampedLock.tryOptimisticRead();
+        int result = number;
+
+        // 故意间隔4秒，乐观认为读取过程中没有其他线程修改number值
+        System.out.println("4s前stampedLock.validate方法值（true无修改，false有修改）" + stampedLock.validate(stamp));
+        for (int i = 0; i < 4; i++) {
+            try {
+                TimeUnit.SECONDS.sleep(1);
+                System.out.println(Thread.currentThread().getName() + "正在读取" + i + "秒" + "后stampLock.validate方法值：" + stampedLock.validate(stamp));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        }
+        if (!stampedLock.validate(stamp)) {
+            System.out.println("有写操作发生");
+            stamp = stampedLock.readLock();
+
+            try {
+                System.out.println("从乐观锁升级为悲观锁");
+
+                result = number;
+
+                System.out.println("重新悲观读后result:" + result);
+            } finally {
+                stampedLock.unlockRead(stamp);
+            }
+        }
+
+        System.out.println("read final result:" + result);
+    }
+
+    public static void main(String[] args) {
+        StampedLockDemo stampedLockDemo = new StampedLockDemo();
+//        new Thread(() -> {
+//            stampedLockDemo.read();
+//        }, "readThread").start();
+        new Thread(() -> {
+            stampedLockDemo.tryOptimisticRead();
+        }, "readThread").start();
+
+        try {
+            TimeUnit.SECONDS.sleep(1);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
+        new Thread(() -> {
+            System.out.println(Thread.currentThread().getName() + "come in");
+            stampedLockDemo.write();
+        }, "writeThread").start();
+    }
+
+// 结果
+4s前stampedLock.validate方法值（true无修改，false有修改）true
+readThread正在读取0秒后stampLock.validate方法值：true
+writeThreadcome in
+writeThread写线程准备修改
+writeThread写线程修改完毕
+readThread正在读取1秒后stampLock.validate方法值：false
+readThread正在读取2秒后stampLock.validate方法值：false
+readThread正在读取3秒后stampLock.validate方法值：false
+有写操作发生
+从乐观锁升级为悲观锁
+重新悲观读后result:50
+read final result:50
+```
+
+### 缺点
+
+- StampedLock不支持重入，没有Re开头
+- StampedLock的悲观读锁和写锁都不支持条件变量（Condition）
+- 使用StampedLock一定不要调用中断操作，即不要调用interrupt()方法

@@ -503,6 +503,67 @@ come in
 
 对于一个线程的执行代码而言，为了提升性能，编译器和处理器通常会对指令序列进行重新排序。Java规范规定JVM线程内部维持顺序化语义，即只要线程的最终结果和它顺序化执行的结果相同，那么指令的执行顺序可以与代码顺序不一致，此过程叫做==指令的重排序==。有序性禁止指令的重排序
 
+### 指令重排
+
+```java
+/**
+ * 指令重排测试
+ */
+public class DisorderTest {
+    int a = 0;
+    boolean flag = false;
+    
+    
+    public void write() {
+        a = 1;
+        flag = true;
+    }
+    
+    
+    public void read() {
+        if (flag) {
+            if (a == 0) {
+                System.out.println("发生了指令重排。。");
+            }
+        }
+    }
+
+
+    public static void main(String[] args) {
+
+        Semaphore semaphore = new Semaphore(100);
+        
+        for (;;) {
+            DisorderTest disorderTest = new DisorderTest();
+            new Thread(() -> {
+                try {
+                    semaphore.acquire();
+                    disorderTest.read();
+                    semaphore.release();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }).start();
+            
+            new Thread(() -> {
+                try {
+                    semaphore.acquire();
+                    disorderTest.write();
+                    semaphore.release();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }).start();
+        }
+
+    }
+}
+// a = 1和flag = true是同一个代码块中的操作，当read时发生flag=true但是a还是等于0时，说明flag=true先发生了
+// 有概率会触发，时间要很久，可能一天
+```
+
+
+
 ## 小总结
 
 - 定义的所有共享变量都存储在==物理主内存==中
@@ -2611,3 +2672,4 @@ read final result:50
 - StampedLock不支持重入，没有Re开头
 - StampedLock的悲观读锁和写锁都不支持条件变量（Condition）
 - 使用StampedLock一定不要调用中断操作，即不要调用interrupt()方法
+

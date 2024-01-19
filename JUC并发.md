@@ -123,6 +123,10 @@ completableFuture.complete("completeValue"); //方法未执行完则立即打断
 
 计算结果存在依赖关系，线程串行化；但是某一步发生异常，会继续执行。
 
+在`handle`方法中，如果前一个阶段抛出异常，处理函数会被调用，并且异常会作为参数传递给处理函数。处理函数可以处理该异常，并返回一个结果（或抛出另一个异常）。这样，`handle`方法会继续执行，并将处理函数的结果作为新的`CompletableFuture`的结果。
+
+这意味着，即使前一个阶段发生了异常，`handle`方法仍然会继续执行，并返回一个新的`CompletableFuture`对象，其中包含处理函数的结果（无论是转换后的结果还是新的异常）
+
 ## 对计算结果进行消费（thenAccept）
 
 接收任务的处理结果，并消费处理，无返回结果
@@ -271,7 +275,7 @@ synchronized(obj)代码块：锁对象是obj
 
 静态方法，Thread.interrupted();==返回当前线程的中断状态，测试当前线程是否已经被中断；将当前线程的中断状态设置清零并重新设置为false，清除线程的中断状态==。
 
-### public boolean interrupted()
+### public boolean isInterrupted()
 
 判断当前线程是否被中断（通过检查中断标志位）
 
@@ -594,7 +598,7 @@ public class DisorderTest {
 | volatile读 | 不可以重排           | 不可以重排             | 不可以重排             |
 | volatile写 | 可以重排             | 不可以重排             | 不可以重排             |
 
-- 当第一个操作为volatile读时，不论第二个操作是什么，都不能重排序。这个操作保证了volatile==读之后==的操作不会被重排到volotile读之前。
+- 当第一个操作为volatile读时，不论第二个操作是什么，都不能重排序。这个操作保证了volatile==读之后==的操作不会被重排到volatile读之前。
 - 当第二个操作为volatile写时，不论第一个操作是什么，都不能重排序。这个操作保证了volatile==写之前==的操作不会被重排到volatile写之后。
 - 当第一个操作为volatile写时，第二个操作为volatile读时，不能重排。
 
@@ -705,7 +709,7 @@ CAS有3个操作数，位置内存值V，旧的预期值A，要修改的更新�
 
 3.线程B也通过getIntVolatile方法获取到值3，此时刚好线程B没有被挂起并执行compareAndSwapInt方法比较内存值也是3，成功修改内存值为4，线程B执行完毕
 
-4.这是线程A恢复，执行compareAndSwapInt方法比较，发现本线程中的值3和主内存的值4不相同，说明该值已经被其他线程修改过，那么线程A本次修改失败，==只能重新在执行一边==
+4.这是线程A恢复，执行compareAndSwapInt方法比较，发现本线程中的值3和主内存的值4不相同，说明该值已经被其他线程修改过，那么线程A本次修改失败，==只能重新在执行一遍==
 
 5.线程A重新获取到value值，因为变量value被volatile修饰，所以其他线程对它的修改，线程A总是能看到，线程A继续执行compareAndSwapInt进行比较替换，直到成功
 

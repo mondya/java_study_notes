@@ -4,7 +4,7 @@
 
 Gradle项目默认目录结构和Maven项目的目录结构一致，都是基于约定大于配置
 
-![image-20230210232346502](.\images\image-20230210232346502.png)
+![image-20230210232346502](https://gitee.com/cnuto/images/raw/master/image/image-20230210232346502.png)
 
 ## 创建
 
@@ -89,17 +89,17 @@ allprojects {
 
 gradle可以通过指定仓库地址为本地maven仓库地址和远程仓库地址相结合的方式，避免每次都去远程仓库下载依赖库，这种方式存在的问题是，如果本地maven仓库存在依赖，则会直接加载本地依赖，如果本地仓库没有依赖，则还是会从远程仓库下载依赖，但是下载的Jar包不会存储在本地maven仓库中，而是放在自己的缓存目录中，默认在USER_HOME/.gradle/caches目录。如果配置了GRADLE_USER_HOME，则会放在/caches目录，gradle cache不能指向maven repository，cache下载的文件不是按照maven仓库的存储方式存储
 
-![image-20230211005124706](.\images\image-20230211005124706.png)
+![image-20230211005124706](https://gitee.com/cnuto/images/raw/master/image/image-20230211005124706.png)
 
 https://developer.aliyun.com/mvn/guide
 
 IDEA配置gradle user home
 
-![image-20230212001048310](.\images\image-20230212001048310.png)
+![image-20230212001048310](https://gitee.com/cnuto/images/raw/master/image/image-20230212001048310.png)
 
 ## gradle_home和gradle_user_home的区别
 
-![image-20230727211011328](.\images\image-20230727211011328.png)
+![image-20230727211011328](https://gitee.com/cnuto/images/raw/master/image/image-20230727211011328.png)
 
 ## Wrapper包装器
 
@@ -119,7 +119,7 @@ Gradle Wrapper实际上就是对Gradle的一层包装，用于解决实际开发
 
 注意：如果没有配置GRADLE_USER_HOME环境变量，则会在当前用户目录下的.gradle文件夹中
 
-![image-20230211011701667](.\images\image-20230211011701667.png)
+![image-20230211011701667](https://gitee.com/cnuto/images/raw/master/image/image-20230211011701667.png)
 
 |      字段名      |                        说明                        |
 | :--------------: | :------------------------------------------------: |
@@ -131,7 +131,7 @@ Gradle Wrapper实际上就是对Gradle的一层包装，用于解决实际开发
 
 注意：如果更改了IDEA配置的use gradle from ，则使用gradle图形界面和控制台使用gradle命令的版本可能不一致，图形界面使用的是warpper文件中的版本，控制台使用的是本地配置的gradle版本
 
-![image-20230212005025312](.\images\image-20230212005025312.png)
+![image-20230212005025312](https://gitee.com/cnuto/images/raw/master/image/image-20230212005025312.png)
 
 ## 测试类
 
@@ -147,7 +147,7 @@ tasks.named('test') {
 
 Gradle项目的生命周期分为三大阶段：Initializaiton -> Configuration -> Execution。
 
-![image-20230212171053585](.\images\image-20230212171053585.png)
+![image-20230212171053585](https://gitee.com/cnuto/images/raw/master/image/image-20230212171053585.png)
 
 ## settings文件
 
@@ -211,7 +211,7 @@ task1.doLast{
 }
 ```
 
-![image-20230212183001862](.\images\image-20230212183001862.png)
+![image-20230212183001862](https://gitee.com/cnuto/images/raw/master/image/image-20230212183001862.png)
 
 本质上类似于一个链表，中间放action,左边放doFisrt，先放入的后执行，右边放入doLast，先放入的先执行
 
@@ -505,7 +505,7 @@ implementation 'com.fasterxml.jackson.datatype:jackson-datatype-guava:2.8.8'
 | 运行时   |     运行时会加载，所有模块的class都要加载      |   运行时会加载，所有模块的class都要被加载    |
 | 应用场景 |       适用于多模块依赖，避免重复依赖模块       |                多数情况下使用                |
 
-![image-20230212232256166](.\images\image-20230212232256166.png)
+![image-20230212232256166](https://gitee.com/cnuto/images/raw/master/image/image-20230212232256166.png)
 
 编译时：如果libC的内容发生变化，由于使用的是api依赖，依赖会传递，所以libC，libA，projectX都要发生变化，都需要重新编译，速度慢；运行时：libA，libC，projectA中的class都要被加载
 
@@ -621,7 +621,7 @@ task.taskVersion {
 
 二进制插件【对象插件】就是实现了org.gradle.api.Plugin接口的插件，每个java gradle 插件都有一个plugin id
 
-![image-20230214210910742](.\images\image-20230214210910742.png)
+![image-20230214210910742](https://gitee.com/cnuto/images/raw/master/image/image-20230214210910742.png)
 
 ```groovy
 /*
@@ -784,7 +784,7 @@ apply plugin : 'plugin name'
 
 ## build.grade文件
 
-![image-20230215230557070](.\images\image-20230215230557070.png)
+![image-20230215230557070](https://gitee.com/cnuto/images/raw/master/image/image-20230215230557070.png)
 
 ### 常见属性代码
 

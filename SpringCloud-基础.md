@@ -284,7 +284,7 @@ info:
 ```java
 @EnableEurekaClient //向eureka注册扫描
 ```
-![](./images/eureka.png)
+![](https://gitee.com/cnuto/images/raw/master/image/eureka.png)
 # Ribbon负载均衡
 SpringCloudRibbon是基于NetFixRibbon实现的一套==客户端负载均衡的工具==
 不用导入依赖,`spring-cloud-starter-netflix-hystrix`包含ribbon相关依赖
@@ -545,7 +545,7 @@ public class DeptConsumerDashboard_9001 {
         return  registrationBean;
     }
 ```
-![](./images/dashboard.jpg)
+![](https://gitee.com/cnuto/images/raw/master/image/dashboard.jpg)
 # Zuul路由网关
 Zuul包含了对请求的路由和过滤两个主要的功能：其中路由功能负责将外部请求转发到具体的微服务上，是实现外部访问同一入口的基础，而过滤器功能则负责对请求的处理过程进行干预，是实现请求校验，服务聚合等功能的基础。Zuul和Eureka进行整合，将Zuul自身注册成为Eureka服务治理下的应用，同时从Eureka中获得其他微服务的消息，即以后的访问微服务都是通过Zuul跳转后获得
 - 创建`springcloud-zuul-9527`项目

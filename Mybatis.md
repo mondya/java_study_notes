@@ -450,7 +450,7 @@ Mybatis默认的事务管理器就是JDBC,连接池：POOLED
 
 可以通过properties属性实现引用配置文件
 
-![image-20201130233209499](images/image-20201130233209499.png)
+![image-20201130233209499](https://gitee.com/cnuto/images/raw/master/image/image-20201130233209499.png)
 
 > 编写一个配置文件 db.properties
 
@@ -548,7 +548,7 @@ public class User{}
 
 当实体类和数据库字段名不是对应时，出现问题
 
-![image-20201201163542746](D:\images\image-20201201163542746.png)
+![image-20201201163542746](https://gitee.com/cnuto/images/raw/master/image/image-20201201163542746.png)
 
 解决方法：
 
@@ -594,7 +594,7 @@ public class User{}
 
 
 
-![image-20201201172516147](D:\images\image-20201201172516147.png)
+![image-20201201172516147](https://gitee.com/cnuto/images/raw/master/image/image-20201201172516147.png)
 
 ### Log4j
 

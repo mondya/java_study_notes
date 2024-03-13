@@ -55,7 +55,7 @@ git config --global --list
 
 添加name和email
 
-![1615039470116](./images/1615039470116.png)
+![1615039470116](https://gitee.com/cnuto/images/raw/master/image/1615039470116.png)
 
 ## Git基本理论
 
@@ -67,7 +67,7 @@ git config --global --list
 
 `Remote`：远程仓库，托管代码的服务器
 
-![1615042594466](./images/1615042594466.png)
+![1615042594466](https://gitee.com/cnuto/images/raw/master/image/1615042594466.png)
 
 ## Git项目搭建
 
@@ -134,7 +134,7 @@ doc/*.txt     #会忽略 doc/notes.txt  但不包括 doc/server/arch.txt
 
 > 添加SSH公钥
 
-![1615098771325](./images/1615098771325.png)
+![1615098771325](https://gitee.com/cnuto/images/raw/master/image/1615098771325.png)
 
 > 使用码云创建一个自己的仓库
 

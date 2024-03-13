@@ -259,7 +259,7 @@ synchronized(obj)代码块：锁对象是obj
 
 # 小结
 
-![image-20230930161312855](.\images\image-20230930161312855.png)
+![image-20230930161312855](https://gitee.com/cnuto/images/raw/master/image/image-20230930161312855.png)
 
 # 线程中断机制
 
@@ -590,7 +590,7 @@ public class DisorderTest {
 
 ## 屏障的插入策略
 
-![image-20231004174555118](.\images\image-20231004174555118.png)
+![image-20231004174555118](https://gitee.com/cnuto/images/raw/master/image/image-20231004174555118.png)
 
 | 第一个操作 | 第二个操作：普通读写 | 第二个操作：volatile读 | 第二个操作：volatile写 |
 | ---------- | -------------------- | ---------------------- | ---------------------- |
@@ -604,11 +604,11 @@ public class DisorderTest {
 
 > 在每个volatile读操作的后面插入一个LoadLoad屏障，一个LoadStore屏障
 
-![image-20231004183142318](.\images\image-20231004183142318.png)
+![image-20231004183142318](https://gitee.com/cnuto/images/raw/master/image/image-20231004183142318.png)
 
 > 在每个volatile写操作前面插入一个StoreStore屏障，后面插入一个StoreLoad屏障
 
-![image-20231004183245071](.\images\image-20231004183245071.png)
+![image-20231004183245071](https://gitee.com/cnuto/images/raw/master/image/image-20231004183245071.png)
 
 ## 可见性示例
 
@@ -641,7 +641,7 @@ public class VolatileDemo {
 
 
 
-![image-20231004213330188](.\images\image-20231004213330188.png)
+![image-20231004213330188](https://gitee.com/cnuto/images/raw/master/image/image-20231004213330188.png)
 
 read：作用于主内存，将变量的值从主内存传输到工作内存，主内存到工作内存
 
@@ -699,7 +699,7 @@ CAS有3个操作数，位置内存值V，旧的预期值A，要修改的更新�
 
 ## 源码
 
-![image-20231008223454169](.\images\image-20231008223454169.png)
+![image-20231008223454169](https://gitee.com/cnuto/images/raw/master/image/image-20231008223454169.png)
 
 假设线程A和线程B两个线程同时执行getAndAddInt操作（分别在不同的CPU上）：
 
@@ -1256,7 +1256,7 @@ clickAccumulator cost: 57毫秒	result:50000000
 
 LongAdder在无竞争的情况下，和AtomicLong一样，对==同一个base==进行操作，当出现竞争关系时则是采用==化整为零分散热点==的做法。用空间换时间，用一个数组cells，将一个value拆分进这个数组cells。多个线程需要同时对value进行操作时，可以对线程id进行hash得到hash值，再根据hash值映射到这个数组cells的某个下标，再对该下标所对应的值进行自增操作。当所有线程操作完毕，将数组cells的所有值和base都加起来作为最终结果，缺点是这个最终结果不是准确的。
 
-![image-20231029211248826](.\images\image-20231029211248826.png)
+![image-20231029211248826](https://gitee.com/cnuto/images/raw/master/image/image-20231029211248826.png)
 
 longAdder.increment()过程--add(1L) --> longAccumulae(x, null, uncontended) --> sum()
 
@@ -1672,7 +1672,7 @@ Exception: java.lang.OutOfMemoryError thrown from the UncaughtExceptionHandler i
 
 若这个key引用是弱引用就大概率减少内存泄漏问题，使ThreadLocal对象在方法执行完毕后顺利被回收且Entry的key引用指向为Null
 
-![image-20231126195846691](.\images\image-20231126195846691.png)
+![image-20231126195846691](https://gitee.com/cnuto/images/raw/master/image/image-20231126195846691.png)
 
 - 为ThreadLocal变量赋值，实际上就是当前的Entry(threadLocal当前变量为key，值为value)放入ThreadLocalMap中。Entry的key是弱引用，当threadLocal外部强引用被置为null（t1=null），那么系统gc时，根据可达性分析，这个threadLocal实例就没有任何一条链路能够引用到它，这个threadLocal会被回收。==于是，ThreadLocalMap中就会出现key为null的Entry，就没有办法访问这些key为nullde Entry的value，如果当前线程长时间没有结束，这些key为Null的Entry的value会一直存在一条强引用链：ThreadRef -> Thread -> ThreadLocalMap -> Entry -> value永远无法回收，造成内存泄漏==。
 - 虽然弱引用，保证了key指向的ThreadLocal对象能够被及时回收，但是v指向的value对象是需要ThreadLocalMap调用get, set时发现key为null时才会去回收整个entry, value，==因此弱引用不能100%保证内存不泄漏，要在不使用某个ThreadLocal后，手动调用remove方法来删除它==。尤其还要注意多线程线程复用情况，线程复用导致ThreadLocalMap对象重复使用。
@@ -1713,7 +1713,7 @@ java的线程是映射到操作系统原生线程之上的，如果要阻塞或�
 
 ## 锁状态图
 
-![image-20231130202448145](.\images\image-20231130202448145.png)
+![image-20231130202448145](https://gitee.com/cnuto/images/raw/master/image/image-20231130202448145.png)
 
 - 偏向锁：MarkWord存储的是偏向的线程ID
 - 轻量锁：MarkWord存储的是指向线程栈中LockRecord的指针
@@ -1756,7 +1756,7 @@ Instance size: 16 bytes
 Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
 ```
 
-![image-20231130224155989](.\images\image-20231130224155989.png)
+![image-20231130224155989](https://gitee.com/cnuto/images/raw/master/image/image-20231130224155989.png)
 
 ## 偏向锁（Java15逐步废弃偏向锁）
 
@@ -1926,7 +1926,7 @@ Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
 
 ## 总结
 
-![image-20231212212118940](.\images\image-20231212212118940.png)
+![image-20231212212118940](https://gitee.com/cnuto/images/raw/master/image/image-20231212212118940.png)
 
 偏向锁：适用于单线程情况，在不存在锁竞争的时候进入同步方法/代码块则使用偏向锁
 
@@ -1947,7 +1947,7 @@ AQS使用一个volatile的int类型的成员变量来表示同步状态，通过
 
 ## Node节点
 
-![image-20231214215920809](.\images\image-20231214215920809.png)
+![image-20231214215920809](https://gitee.com/cnuto/images/raw/master/image/image-20231214215920809.png)
 
 ## 源码
 
@@ -2183,13 +2183,13 @@ jdk11
 
 ### 示例图
 
-![image-20231216231600870](.\images\image-20231216231600870.png)
+![image-20231216231600870](https://gitee.com/cnuto/images/raw/master/image/image-20231216231600870.png)
 
 # 读写锁
 
 ## 读写锁的演化
 
-![image-20231219220526801](.\images\image-20231219220526801.png)
+![image-20231219220526801](https://gitee.com/cnuto/images/raw/master/image/image-20231219220526801.png)
 
 ## ReentrantLock/synchronized
 
@@ -2462,7 +2462,7 @@ class MyResource {
 
 遵循获取写锁，获取读锁在释放写锁的次序，写锁能够降级为读锁
 
-![image-20231219232631794](.\images\image-20231219232631794.png)
+![image-20231219232631794](https://gitee.com/cnuto/images/raw/master/image/image-20231219232631794.png)
 
 ```java
 public class LockDownDemo {
@@ -2516,7 +2516,7 @@ public class LockDownDemo {
 // 结果：项目卡住，无法进行
 ```
 
-![image-20231219233045507](.\images\image-20231219233045507.png)
+![image-20231219233045507](https://gitee.com/cnuto/images/raw/master/image/image-20231219233045507.png)
 
 ## 为什么需要锁降级
 

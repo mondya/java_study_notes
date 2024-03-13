@@ -33,7 +33,7 @@ web应用程序编写完毕后，若想提供给外界访问，需要一个服�
 
 - *.html , *.htm ,这些都是网页的后缀，如果服务器上一直存在这些东西，可以直接进行访问。
 
-![image-20201226220504964](./images/image-20201226220504964.png)
+![image-20201226220504964](https://gitee.com/cnuto/images/raw/master/image/image-20201226220504964.png)
 
 - 静态web存在的缺点
   - web页面无法动态更新，所有用户看到同一个页面
@@ -46,7 +46,7 @@ web应用程序编写完毕后，若想提供给外界访问，需要一个服�
 
 页面会动态展示：“web的页面展示的效果，每个人都不同”
 
-![image-20201226222346494](./images/image-20201226222346494.png)
+![image-20201226222346494](https://gitee.com/cnuto/images/raw/master/image/image-20201226222346494.png)
 
 缺点
 
@@ -74,7 +74,7 @@ web应用程序编写完毕后，若想提供给外界访问，需要一个服�
 
 > 文件夹信息
 
-![image-20201227200624227](./images/image-20201227200624227.png)
+![image-20201227200624227](https://gitee.com/cnuto/images/raw/master/image/image-20201227200624227.png)
 
 ### 2.2配置
 
@@ -177,11 +177,11 @@ Content-Type: text/html;charset=utf-8 类型
 
 ### 4.1在IDEA中使用maven
 
-![image-20201228220937811](./images/image-20201228220937811.png)
+![image-20201228220937811](https://gitee.com/cnuto/images/raw/master/image/image-20201228220937811.png)
 
 ### 4.2配置tomcat
 
-![image-20201228221930514](./images/image-20201228221930514.png)
+![image-20201228221930514](https://gitee.com/cnuto/images/raw/master/image/image-20201228221930514.png)
 
 ## 5.Servlet
 
@@ -210,7 +210,7 @@ Servlet接口sun有两个默认的实现类：HttpServlet
 
 实现原理
 
-![image-20201229225332811](./images/image-20201229225332811.png)
+![image-20201229225332811](https://gitee.com/cnuto/images/raw/master/image/image-20201229225332811.png)
 
 ```java
 public class HelloServlet extends HttpServlet {
@@ -731,7 +731,7 @@ Java Server Pages :Java服务端页面，也和Servlet一样，用于动态web�
 
 ### 7.2.jsp原理
 
-![image-20210119232033278](./images/image-20210119232033278.png)
+![image-20210119232033278](https://gitee.com/cnuto/images/raw/master/image/image-20210119232033278.png)
 
 通过查看文件发现页面转化为java程序
 
@@ -923,7 +923,7 @@ jsp声明：会被编译到jsp生成Java类中，其他会被生成到jspservice
 
 JSTL标签库的使用是为了弥补HTML标签的不足；
 
-![image-20210126220012762](./images/image-20210126220012762.png)
+![image-20210126220012762](https://gitee.com/cnuto/images/raw/master/image/image-20210126220012762.png)
 
 **JSTL标签使用步骤**
 
@@ -1043,7 +1043,7 @@ id：<jsp:getProperty name="people" property="id"/>
 
 什么是MVC:Model  view Controller 模型，视图，控制器
 
-![image-20210130202019920](./images/image-20210130202019920.png)
+![image-20210130202019920](https://gitee.com/cnuto/images/raw/master/image/image-20210130202019920.png)
 
 Model
 
@@ -1240,7 +1240,7 @@ public class TestJdbc {
 - 导入Jar包
 - 创建项目包结构
 
-![1613022441585](./images/1613022441585.png)
+![1613022441585](https://gitee.com/cnuto/images/raw/master/image/1613022441585.png)
 
 - 编写实体类
 
@@ -1380,7 +1380,7 @@ public class BaseDao {
 
 # 登入功能实现
 
-![1613025305617](./images/1613025305617.png)
+![1613025305617](https://gitee.com/cnuto/images/raw/master/image/1613025305617.png)
 
 1.编写前端页面
 

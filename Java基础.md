@@ -22,7 +22,7 @@ public class Welcome {
 
 ## 一些DOS命令
 
-![image-20201026204009775](D:.\images\image-20201026204009775.png)
+![image-20201026204009775](https://gitee.com/cnuto/images/raw/master/image/image-20201026204009775.png)
 
 
 
@@ -246,7 +246,7 @@ x?y:z
 
  自动类型转换指的是容量小的数据类型可以自动转换为容量大的数据类型。如图，实线表示无数据丢失的自动类型转化，虚线表示在转换时可能会有精度的损失。
 
-![1.png](D:\images\1494906265693111.png)
+![1.png](https://gitee.com/cnuto/images/raw/master/image/1494906265693111.png)
 
 ### 常见问题
 
@@ -623,7 +623,7 @@ class Computer{
 
 JAVA虚拟机的内存可以分为三个区域：栈stack,堆heap，方法区method area。
 
-![未命名文件](D:\images\未命名文件.png)
+![未命名文件](https://gitee.com/cnuto/images/raw/master/image/未命名文件.png)
 
 #### 栈的特点：
 

@@ -12,7 +12,7 @@
 
 Java对异常进行了分类，不同类型的异常分别用不同的Java类表示，所有异常的根类为java.lang.Throwable，Throwable下面又派生了两个子类：Error和Exception。
 
-![图6-2 Java异常类层次结构图.png](.\images\1495272017528669.png)
+![图6-2 Java异常类层次结构图.png](https://gitee.com/cnuto/images/raw/master/image/1495272017528669.png)
 
 ### Error
 
@@ -153,13 +153,13 @@ public class TestMyException {
 
    ==泛型==的本质就是“数据类型的参数化”。 我们可以把“泛型”理解为数据类型的一个占位符(形式参数)，即告诉编译器，在调用泛型时必须传入实际类型。
 
-![图9-1容器的接口层次结构图.png](.\images\1495613220648265.png)
+![图9-1容器的接口层次结构图.png](https://gitee.com/cnuto/images/raw/master/image/1495613220648265.png)
 
 ## Collection接口
 
 > Collection 表示一组对象，它是集中、收集的意思。Collection接口的两个子接口是List、Set接口
 
-![表9-1 Collection接口中定义的方法.png](.\images\1495614959696503.png)
+![表9-1 Collection接口中定义的方法.png](https://gitee.com/cnuto/images/raw/master/image/1495614959696503.png)
 
 ### list接口
 
@@ -173,7 +173,7 @@ public class TestMyException {
 
 除了Collection接口中的方法，List多了一些跟顺序有关的方法：
 
-![表9-2 List接口中定义的方法.png](.\images\1495616109914665.png)
+![表9-2 List接口中定义的方法.png](https://gitee.com/cnuto/images/raw/master/image/1495616109914665.png)
 
 ==ArrayList底层是用数组实现的存储。特点：查询效率高，增删效率低，线程不安全。（一般使用它）==
 
@@ -197,7 +197,7 @@ Map 接口的实现类有HashMap、TreeMap、HashTable、Properties等。
 
 > 常用的方法
 
-![表9-3 Map接口中常用的方法.png](.\images\1495617463792119.png)
+![表9-3 Map接口中常用的方法.png](https://gitee.com/cnuto/images/raw/master/image/1495617463792119.png)
 
 ### HashMap
 
@@ -279,9 +279,9 @@ public class HashMap<K,V>
 
 3.hash:键对象的hash值
 
-![图9-14 Entry对象存储结构图.png](.\images\1495619082593896.png)
+![图9-14 Entry对象存储结构图.png](https://gitee.com/cnuto/images/raw/master/image/1495619082593896.png)
 
-![图9-15 Entry数组存储结构图.png](./images/1495619119905721.png)
+![图9-15 Entry数组存储结构图.png](https://gitee.com/cnuto/images/raw/master/image/1495619119905721.png)
 
 当添加一个元素(key-value)时，首先计算key的hash值，以此确定插入数组中的位置，但是可能存在同一hash值的元素已经被放在数组同一位置了，这时就添加到同一hash值的元素的后面，他们在数组的同一位置，就形成了链表，同一个链表上的Hash值是相同的，所以说数组存放的是链表。 JDK8中，当链表长度大于8时，链表就转换为红黑树，这样又大大提高了查找的效率。
 
@@ -324,18 +324,18 @@ public class Test {
 
 ==并行：值两个或多个事件在同一时刻发生（同时发生）==
 
-![image-20201124162503275](.\images\image-20201124162503275.png)
+![image-20201124162503275](https://gitee.com/cnuto/images/raw/master/image/image-20201124162503275.png)
 
 **线程和进程**
 
 - 进程：是指一个内存中运行的应用程序，每个进程都有一个独立的内存空间，一个应用程序可以同时运行多个进程；进程也是程序的一次执行过程，是系统运行程序的基本单位；系统运行一个程序即是一个进程从创建，运行到消亡的过程。
 - 线程：线程是进程中的一个执行单元，负责当前进程中程序的执行，一个进程中至少有一个线程。一个进程中是可以有多个线程的，这个应用程序也可以称之为多线程程序。
 
-![image-20201123180100519](.\images\image-20201123180100519.png)
+![image-20201123180100519](https://gitee.com/cnuto/images/raw/master/image/image-20201123180100519.png)
 
 
 
-![image-20201123180010830](.\images\image-20201123180010830.png)
+![image-20201123180010830](https://gitee.com/cnuto/images/raw/master/image/image-20201123180010830.png)
 
 
 
@@ -786,7 +786,7 @@ public class WaitAndNotify {
 
 ## 等待唤醒机制需求分析
 
-![image-20201125150301836](D:.\images\image-20201125150301836.png)
+![image-20201125150301836](https://gitee.com/cnuto/images/raw/master/image/image-20201125150301836.png)
 
 # 线程池概念
 

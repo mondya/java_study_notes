@@ -211,7 +211,7 @@ chmod [-R] xyz 文件或目录
 
 **-R**：进行递归的持续变更
 
-![1618725556458](./images/1618725556458.png)
+![1618725556458](https://gitee.com/cnuto/images/raw/master/image/1618725556458.png)
 
 ## 文件内容查看
 
@@ -219,25 +219,25 @@ linux系统中使用以下命令来查看文件的内容：
 
 - ==**cat** 由第一行开始显示文件内容==
 
-  ![1618753679257](./images/1618753679257.png)
+  ![1618753679257](https://gitee.com/cnuto/images/raw/master/image/1618753679257.png)
 
 - **tac** 从最后一行开始显示，可以看出tac是cat倒着写
 
-  ![1618753707388](./images/1618753707388.png)
+  ![1618753707388](https://gitee.com/cnuto/images/raw/master/image/1618753707388.png)
 
 - ==**nl**显示的时候，输出行号==
 
-  ![1618753734698](./images/1618753734698.png)
+  ![1618753734698](https://gitee.com/cnuto/images/raw/master/image/1618753734698.png)
 
 - ==**more** 一页一页的显示文件内容(空格代表翻到下一页，enter代表往下看一行，:f 看到行数)==
 
-  ![1618753909204](./images/1618753909204.png)
+  ![1618753909204](https://gitee.com/cnuto/images/raw/master/image/1618753909204.png)
 
 - ==**less** 与 more类似，但是比more更好的是，他可以往前翻页（空格翻页，enter下一行，上下键翻页,q命令退出,查找字符串 使用  /字符串   ,如果使用`?字符串`命令查找，则n代表向下寻找，N代表向上寻找）==
 
 - **head** 只看头几行（-n 输入行数）
 
-  ![1618754197105](./images/1618754197105.png)
+  ![1618754197105](https://gitee.com/cnuto/images/raw/master/image/1618754197105.png)
 
 - **tail** 只看尾巴几行
 
@@ -318,7 +318,7 @@ i love you
 - q    退出程序
 - w    保存文件
 
-![img](./images/vim-vi-workmodel.png) 
+![img](https://gitee.com/cnuto/images/raw/master/image/vim-vi-workmodel.png) 
 
 ### vim使用实例
 
@@ -455,7 +455,7 @@ usermod 选项 用户名
  usermod -d /home/test xhh
 ```
 
-![1618841459018](./images/1618841459018.png)
+![1618841459018](https://gitee.com/cnuto/images/raw/master/image/1618841459018.png)
 
 > 切换用户
 
@@ -471,9 +471,9 @@ $表示普通用户
 
 \#表示超级用户，也就是root用户
 
-![1618842336733](./images/1618842336733.png)
+![1618842336733](https://gitee.com/cnuto/images/raw/master/image/1618842336733.png)
 
-![1618842879646](./images/1618842879646.png)
+![1618842879646](https://gitee.com/cnuto/images/raw/master/image/1618842879646.png)
 
 > 用户的密码设置
 
@@ -524,7 +524,7 @@ groupadd xhh
 
 创建完用户组后可以得到一个组的id，这个id是可以指定的！`-g 520`,如果不指定则会在自定义的用户组id后面自增1
 
-![1618845828496](./images/1618845828496.png)
+![1618845828496](https://gitee.com/cnuto/images/raw/master/image/1618845828496.png)
 
 > 删除用户组 groupdel
 

@@ -42,7 +42,7 @@
         </dependencies>
 ```
 
-![image-20201209223848773](./images/image-20201209223848773.png)
+![image-20201209223848773](https://gitee.com/cnuto/images/raw/master/image/image-20201209223848773.png)
 
 - DispatcherServlet表示前置控制器，是整个SpringMVC的控制中心。用户发出请求，DispatcherServlet接收请求并拦截请求。
 

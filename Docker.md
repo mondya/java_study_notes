@@ -58,7 +58,7 @@ yum install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-co
 systemctl start docker
 ```
 
-![image-20230221224431445](.\images\image-20230221224431445.png)
+![image-20230221224431445](https://gitee.com/cnuto/images/raw/master/image/image-20230221224431445.png)
 
 ### helloWord
 
@@ -100,7 +100,7 @@ docker run hello-world
 
 `docker images`：查看主机上安装的docker镜像
 
-![image-20230223220950358](.\images\image-20230223220950358.png)
+![image-20230223220950358](https://gitee.com/cnuto/images/raw/master/image/image-20230223220950358.png)
 
 REPOSITORY：表示仓库的镜像源
 
@@ -116,7 +116,7 @@ SIZE：镜像大小
 
 `docker search xxx` ：查询某个镜像
 
-![image-20230224201903420](.\images\image-20230224201903420.png)
+![image-20230224201903420](https://gitee.com/cnuto/images/raw/master/image/image-20230224201903420.png)
 
 name：镜像名称
 
@@ -142,7 +142,7 @@ automated：是否是自动构建
 
 `docker rmi [-f] ${docker images -qa}`：删除本机上所有镜像
 
-![image-20230306210840030](.\images\image-20230306210840030.png)
+![image-20230306210840030](https://gitee.com/cnuto/images/raw/master/image/image-20230306210840030.png)
 
 #### 移除容器
 
@@ -202,7 +202,7 @@ automated：是否是自动构建
 
 `docker start 容器ID或容器名`
 
-![image-20230306210955250](.\images\image-20230306210955250.png)
+![image-20230306210955250](https://gitee.com/cnuto/images/raw/master/image/image-20230306210955250.png)
 
 #### 重启/停止
 
@@ -268,11 +268,11 @@ UnionFS(联合文件系统)：UnionFS文件系统是一种分层、轻量级并�
 
 ==Docker镜像层都是只读的，容器层是可写的==。当容器启动时，一个新的可写层别加载到镜像的顶部，这一层通常被称为“容器层”，“容器层”之下的都叫做“镜像层”。所有对容器的改动，无论添加，删除，修改都只会发生在容器层中。
 
-![image-20230304222537180](.\images\image-20230304222537180.png)
+![image-20230304222537180](https://gitee.com/cnuto/images/raw/master/image/image-20230304222537180.png)
 
 Docker中的镜像分层，==支持通过扩展现有镜像，创建新的镜像==。类似于Java继承于一个Base基础类，自己按需拓展，新镜像是从base镜像一层一层叠加生成的，每安装一个软件，就在现有镜像的基础上增加一层。
 
-![image-20230304231011263](.\images\image-20230304231011263.png)
+![image-20230304231011263](https://gitee.com/cnuto/images/raw/master/image/image-20230304231011263.png)
 
 ## commit命令
 
@@ -287,11 +287,11 @@ docker commit提交容器副本使之成为一个新的镜像
 - `apt-get update`
 - `apt-get -y install vim`，安装vim
 
-![image-20230304224805660](.\images\image-20230304224805660.png)
+![image-20230304224805660](https://gitee.com/cnuto/images/raw/master/image/image-20230304224805660.png)
 
 > commit安装过vim命令的ubuntu
 
-![image-20230304225657128](.\images\image-20230304225657128.png)
+![image-20230304225657128](https://gitee.com/cnuto/images/raw/master/image/image-20230304225657128.png)
 
 ## 发布阿里云
 
@@ -306,19 +306,19 @@ todo
 
 - `curl -XGET http://localhost:5000/v2/_catalog`：查看本地镜像仓库的镜像
 
-![image-20230305144520439](.\images\image-20230305144520439.png)
+![image-20230305144520439](https://gitee.com/cnuto/images/raw/master/image/image-20230305144520439.png)
 
 - 按照公式 `docker tag 镜像:Tag Host:Port/Repository:Tag`，host，port为自己主机`docker tag 7cafd0fc013b localhost:5000/xhhubuntu:1.0`
 
-![image-20230305145412114](.\images\image-20230305145412114.png)
+![image-20230305145412114](https://gitee.com/cnuto/images/raw/master/image/image-20230305145412114.png)
 
 - 推送到本地仓库`docker push localhost:5000/xhhubuntu:1.0`
 
-![image-20230305145755840](.\images\image-20230305145755840.png)
+![image-20230305145755840](https://gitee.com/cnuto/images/raw/master/image/image-20230305145755840.png)
 
 > 验证
 
-![image-20230305150335811](.\images\image-20230305150335811.png)
+![image-20230305150335811](https://gitee.com/cnuto/images/raw/master/image/image-20230305150335811.png)
 
 ## Docker容器数据卷
 
@@ -349,9 +349,9 @@ Docker挂载主机目录访问如果出现cannot open directory.:Permission deni
 
 - 主机对dockerin.txt文件修改，docker中也会自动同步
 
-  ![image-20230305202854104](.\images\image-20230305202854104.png)
+  ![image-20230305202854104](https://gitee.com/cnuto/images/raw/master/image/image-20230305202854104.png)
 
-![image-20230305202951121](.\images\image-20230305202951121.png)
+![image-20230305202951121](https://gitee.com/cnuto/images/raw/master/image/image-20230305202951121.png)
 
 ### 读写
 
@@ -369,7 +369,7 @@ Docker挂载主机目录访问如果出现cannot open directory.:Permission deni
 
 `docker run -d -p 8080:8080 --name t1 tomcat `：后台启动tomcat，此时访问tomcat80端口报404，需要把tomcat中的webapps.dist改名为webapps，原来的webapps目录为空，可以删除
 
-![image-20230306213241360](.\images\image-20230306213241360.png)
+![image-20230306213241360](https://gitee.com/cnuto/images/raw/master/image/image-20230306213241360.png)
 
 ## MySQL的安装
 
@@ -383,7 +383,7 @@ Docker挂载主机目录访问如果出现cannot open directory.:Permission deni
 
 `show databases;`：查看mysql中的数据库
 
-![image-20230306223514456](.\images\image-20230306223514456.png)
+![image-20230306223514456](https://gitee.com/cnuto/images/raw/master/image/image-20230306223514456.png)
 
 `create database db01;`：新建数据库db01
 
@@ -397,7 +397,7 @@ Docker挂载主机目录访问如果出现cannot open directory.:Permission deni
 
 > 需要注意中文乱码问题，mysql8.0默认编码utf8，但是5.7不是
 
-![image-20230306223639855](.\images\image-20230306223639855.png)
+![image-20230306223639855](https://gitee.com/cnuto/images/raw/master/image/image-20230306223639855.png)
 
 ## MySQL安装进阶
 
@@ -469,7 +469,7 @@ mysql8:
 
 
 
-![image-20230311002001884](.\images\image-20230311002001884.png)
+![image-20230311002001884](https://gitee.com/cnuto/images/raw/master/image/image-20230311002001884.png)
 
 ### 新建从服务器容器实例3308
 
@@ -508,7 +508,7 @@ read_only=1
 
 `show master status;`
 
-![image-20230311002626606](.\images\image-20230311002626606.png)
+![image-20230311002626606](https://gitee.com/cnuto/images/raw/master/image/image-20230311002626606.png)
 
 ### 在从数据库中配置主从复制
 
@@ -530,21 +530,21 @@ read_only=1
 
 `change master to master_host='192.168.31.142',master_user='slave',master_password='123456',master_port=3307,master_log_file='mall-mysql-bin.000004',master_log_pos=1160,master_connect_retry=30;`
 
-![image-20230311005045281](.\images\image-20230311005045281.png)
+![image-20230311005045281](https://gitee.com/cnuto/images/raw/master/image/image-20230311005045281.png)
 
 ### 在从数据库中查看主从同步状态
 
 `show slave status \G;`
 
-![image-20230311005145772](.\images\image-20230311005145772.png)
+![image-20230311005145772](https://gitee.com/cnuto/images/raw/master/image/image-20230311005145772.png)
 
 ### 在从数据库中开启主从同步
 
 `start slave;`
 
-![image-20230311005315282](.\images\image-20230311005315282.png)
+![image-20230311005315282](https://gitee.com/cnuto/images/raw/master/image/image-20230311005315282.png)
 
-![image-20230311145231446](.\images\image-20230311145231446.png)
+![image-20230311145231446](https://gitee.com/cnuto/images/raw/master/image/image-20230311145231446.png)
 
 ### 验证
 
@@ -552,7 +552,7 @@ read_only=1
 
 在从数据库中验证是否查询到数据。
 
-![image-20230311145930523](.\images\image-20230311145930523.png)
+![image-20230311145930523](https://gitee.com/cnuto/images/raw/master/image/image-20230311145930523.png)
 
 ## 分布式存储
 
@@ -610,7 +610,7 @@ CRC16算法产生的hash值有16bit，该算法可以产生2^16=65535个值
 >
 > -- appendonly yes：开启持久化
 
-![image-20230311221139778](.\images\image-20230311221139778.png)
+![image-20230311221139778](https://gitee.com/cnuto/images/raw/master/image/image-20230311221139778.png)
 
 ### 进入容器redis-node-1并为6台机器构建集群关系
 
@@ -622,9 +622,9 @@ CRC16算法产生的hash值有16bit，该算法可以产生2^16=65535个值
 
 `redis-cli --cluster create 192.168.31.142:6381 192.168.31.142:6382 192.168.31.142:6383 192.168.31.142:6384 192.168.31.142:6385 192.168.31.142:6386 --cluster-replicas 1`
 
-![image-20230311223009098](.\images\image-20230311223009098.png)
+![image-20230311223009098](https://gitee.com/cnuto/images/raw/master/image/image-20230311223009098.png)
 
-![image-20230311223128176](.\images\image-20230311223128176.png)
+![image-20230311223128176](https://gitee.com/cnuto/images/raw/master/image/image-20230311223128176.png)
 
 ### 查看集群状态/信息
 
@@ -638,7 +638,7 @@ CRC16算法产生的hash值有16bit，该算法可以产生2^16=65535个值
 
 查看集群的状态：`cluster info`
 
-![image-20230311224701219](.\images\image-20230311224701219.png)
+![image-20230311224701219](https://gitee.com/cnuto/images/raw/master/image/image-20230311224701219.png)
 
 #### 查看节点之间的关系
 
@@ -646,23 +646,23 @@ CRC16算法产生的hash值有16bit，该算法可以产生2^16=65535个值
 
 查看节点之间的关系：`cluster nodes`
 
-![image-20230311225426239](.\images\image-20230311225426239.png)
+![image-20230311225426239](https://gitee.com/cnuto/images/raw/master/image/image-20230311225426239.png)
 
 #### 查看集群的槽位分配相关信息
 
 查看集群的槽位分配相关信息：`redis-cli --cluster check [主机ip]:端口号`
 
-![image-20230312142553364](.\images\image-20230312142553364.png)
+![image-20230312142553364](https://gitee.com/cnuto/images/raw/master/image/image-20230312142553364.png)
 
 ### 读写数据
 
 不能使用`redis-cli -p 6381 `，这样只连接了一台redis，不在该redis分配的槽位时数据不能写入
 
-![image-20230312141442699](.\images\image-20230312141442699.png)
+![image-20230312141442699](https://gitee.com/cnuto/images/raw/master/image/image-20230312141442699.png)
 
 加入`-c`，`redis-cli -p 6381 -c`：链接集群
 
-![image-20230312142156208](.\images\image-20230312142156208.png)
+![image-20230312142156208](https://gitee.com/cnuto/images/raw/master/image/image-20230312142156208.png)
 
 ### Redis集群主从切换
 
@@ -670,19 +670,19 @@ CRC16算法产生的hash值有16bit，该算法可以产生2^16=65535个值
 
 `docker stop redis-node-1`
 
-![image-20230312145501121](.\images\image-20230312145501121.png)
+![image-20230312145501121](https://gitee.com/cnuto/images/raw/master/image/image-20230312145501121.png)
 
 #### 重启redis-node-1
 
 `docker restart redis-node-1`
 
-![image-20230312145947112](.\images\image-20230312145947112.png)
+![image-20230312145947112](https://gitee.com/cnuto/images/raw/master/image/image-20230312145947112.png)
 
 #### 保持原来的主从关系
 
 `docker stop redis-node-6`,`docker start redis-node-6`：先关闭，在重启
 
-![image-20230312151246610](.\images\image-20230312151246610.png)
+![image-20230312151246610](https://gitee.com/cnuto/images/raw/master/image/image-20230312151246610.png)
 
 ### 主从扩容
 
@@ -702,9 +702,9 @@ CRC16算法产生的hash值有16bit，该算法可以产生2^16=65535个值
 
 6381就是已存在的节点，指定一个已经存在节点的Ip和端口号，用于将新节点加入到已经存在的集群中
 
-![image-20230312160355025](.\images\image-20230312160355025.png)
+![image-20230312160355025](https://gitee.com/cnuto/images/raw/master/image/image-20230312160355025.png)
 
-![image-20230312160516868](.\images\image-20230312160516868.png)
+![image-20230312160516868](https://gitee.com/cnuto/images/raw/master/image/image-20230312160516868.png)
 
 #### 重新分配槽号
 
@@ -712,11 +712,11 @@ CRC16算法产生的hash值有16bit，该算法可以产生2^16=65535个值
 
 `redis-cli --cluster reshard 192.168.31.142:6381`
 
-![image-20230312174444786](.\images\image-20230312174444786.png)
+![image-20230312174444786](https://gitee.com/cnuto/images/raw/master/image/image-20230312174444786.png)
 
 再次查看槽位分配信息
 
-![image-20230312174607089](.\images\image-20230312174607089.png)
+![image-20230312174607089](https://gitee.com/cnuto/images/raw/master/image/image-20230312174607089.png)
 
 #### 为主节点6387挂载slave6388
 
@@ -724,13 +724,13 @@ CRC16算法产生的hash值有16bit，该算法可以产生2^16=65535个值
 
 `redis-cli --cluster add-node 192.168.31.142:6388 192.168.31.142:6387 --cluster-slave --cluster-master-id 3a816d4fe438e4e5def869a4fa03996f0cf80622`
 
-![image-20230312181828862](.\images\image-20230312181828862.png)
+![image-20230312181828862](https://gitee.com/cnuto/images/raw/master/image/image-20230312181828862.png)
 
 #### 再次查看节点分配信息
 
 `redis-cli --cluster check 192.168.31.142:6387`
 
-![image-20230312182342170](.\images\image-20230312182342170.png)
+![image-20230312182342170](https://gitee.com/cnuto/images/raw/master/image/image-20230312182342170.png)
 
 ### 主从缩容
 
@@ -740,23 +740,23 @@ CRC16算法产生的hash值有16bit，该算法可以产生2^16=65535个值
 
 `redis-cli --cluster del-node 192.168.31.142:6388 2eff6b953985e980dfdfdf2850053d93de7bbf22`
 
-![image-20230312184537624](.\images\image-20230312184537624.png)
+![image-20230312184537624](https://gitee.com/cnuto/images/raw/master/image/image-20230312184537624.png)
 
 #### 重新分配槽号
 
 `redis-cli --cluster reshard IP地址:端口号`
 
-![image-20230312185434211](.\images\image-20230312185434211.png)
+![image-20230312185434211](https://gitee.com/cnuto/images/raw/master/image/image-20230312185434211.png)
 
 #### 再次查看节点分配信息
 
-![image-20230312185618506](.\images\image-20230312185618506.png)
+![image-20230312185618506](https://gitee.com/cnuto/images/raw/master/image/image-20230312185618506.png)
 
 #### 删除被清空的master节点6387
 
 `redis-cli --cluster del-node 192.168.31.142:6387 3a816d4fe438e4e5def869a4fa03996f0cf80622`
 
-![image-20230312194423548](.\images\image-20230312194423548.png)
+![image-20230312194423548](https://gitee.com/cnuto/images/raw/master/image/image-20230312194423548.png)
 
 ## DockerFile
 
@@ -866,7 +866,7 @@ CMD ["/etc/nginx/nginx.conf"] #变参
 
 传参运行：`docker run nignx:test -c /etc/nignx/new.conf`  ---> 衍生出的实际命令`nginx -c /etc/nginx/new.conf`
 
-![image-20230315231026453](.\images\image-20230315231026453.png)
+![image-20230315231026453](https://gitee.com/cnuto/images/raw/master/image/image-20230315231026453.png)
 
 ### 使用DockerFile创建自定义centos
 
@@ -908,9 +908,9 @@ CMD /bin/bash
 
 `docker build -t centosjava8:1.5 .`
 
-![image-20230316220231696](.\images\image-20230316220231696.png)
+![image-20230316220231696](https://gitee.com/cnuto/images/raw/master/image/image-20230316220231696.png)
 
-![image-20230316220457635](.\images\image-20230316220457635.png)
+![image-20230316220457635](https://gitee.com/cnuto/images/raw/master/image/image-20230316220457635.png)
 
 ## 虚悬镜像
 
@@ -950,13 +950,13 @@ EXPOSE 6001
 
 `docker build -t xhh_docker:1.0 .`
 
-![image-20230318223627898](.\images\image-20230318223627898.png)
+![image-20230318223627898](https://gitee.com/cnuto/images/raw/master/image/image-20230318223627898.png)
 
 ### 验证
 
-![image-20230318224921550](.\images\image-20230318224921550.png)
+![image-20230318224921550](https://gitee.com/cnuto/images/raw/master/image/image-20230318224921550.png)
 
-![image-20230318224955086](.\images\image-20230318224955086.png)
+![image-20230318224955086](https://gitee.com/cnuto/images/raw/master/image/image-20230318224955086.png)
 
 ## Docker网络
 
@@ -982,7 +982,7 @@ Docker服务默认创建一个docker0网桥（其上有一个docker0内部接口
 
 - 整个宿主机的网桥模式都是docker0，类似一个交换机有一堆接口，每个接口叫做veth，在本地主机和容器内分别创建也给虚拟接口，并让他们彼此联通（这样一对接口叫做veth pari）；每个容器实例内部也有一块网卡，每个接口叫做eth0;docker0上面的每个veth匹配某个容器实例内部的eth0，两两配对，一一匹配
 
-![image-20230321213952115](.\images\image-20230321213952115.png)
+![image-20230321213952115](https://gitee.com/cnuto/images/raw/master/image/image-20230321213952115.png)
 
 `docker run -d -p 8081:8080 --name tomcat1 tomcat`
 
@@ -990,7 +990,7 @@ Docker服务默认创建一个docker0网桥（其上有一个docker0内部接口
 
 启动两个tomcat，查看主机端口`ip addr`
 
-![image-20230321220643796](.\images\image-20230321220643796.png)
+![image-20230321220643796](https://gitee.com/cnuto/images/raw/master/image/image-20230321220643796.png)
 
 ### Host
 
@@ -1004,7 +1004,7 @@ Docker服务默认创建一个docker0网桥（其上有一个docker0内部接口
 
 容器将==不会获得==一个独立的NetWork NameSpace，而是和宿主机共用一个NetWork NameSpace。==容器将不会虚拟出自己的网卡而是使用宿主机的IP和端口==
 
-![image-20230321223313309](.\images\image-20230321223313309.png)
+![image-20230321223313309](https://gitee.com/cnuto/images/raw/master/image/image-20230321223313309.png)
 
 ### None
 
@@ -1014,7 +1014,7 @@ Docker服务默认创建一个docker0网桥（其上有一个docker0内部接口
 
 新建的容器和已经存在的一个容器共享一个网络Ip配置而不是和宿主机共享。新创建的容器不会创建自己的网卡，配置自己的IP，而是和一个指定的容器共享IP，端口范围等。同样，两个容器除了网络方面，其他的如问价系统，进程列表等还是隔离的
 
-![image-20230323212401608](.\images\image-20230323212401608.png)
+![image-20230323212401608](https://gitee.com/cnuto/images/raw/master/image/image-20230323212401608.png)
 
 `docker run -d -p 8085:8080 --name tomcat85 tomcat`
 `docker run -d -p 8086:8080 --network container:tomcat85 --name tomcat`
@@ -1025,7 +1025,7 @@ Docker服务默认创建一个docker0网桥（其上有一个docker0内部接口
 
 `docker run -it --network container:apline1 --name apline2 /bin/sh`
 
-![image-20230323213815548](.\images\image-20230323213815548.png)
+![image-20230323213815548](https://gitee.com/cnuto/images/raw/master/image/image-20230323213815548.png)
 
 ### 自定义网络
 
@@ -1049,7 +1049,7 @@ Compose允许用户通过一个单独的==docker-compose.yml==（YAML格式）�
 
 - 更改权限`chomd +x /usr/local/bin/docker-compose`
 
-![image-20230324212608123](.\images\image-20230324212608123.png)
+![image-20230324212608123](https://gitee.com/cnuto/images/raw/master/image/image-20230324212608123.png)
 
 ### 常用命令
 

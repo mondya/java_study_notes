@@ -1,9 +1,9 @@
 # JVM基础知识
 ## JVM结构
-![](./images/JVM流程图.jpg)
+![](https://gitee.com/cnuto/images/raw/master/image/JVM流程图.jpg)
 ## 类加载器
 作用：加载class文件
-![](./images/JVM类加载.jpg)
+![](https://gitee.com/cnuto/images/raw/master/image/JVM类加载.jpg)
 JVM中提供了三层的ClassLoader:
 
 - `BootStrap classLoader`:主要负责加载核心的类库(例如java.lang.*)，构造ExtClassLoader和APPClassLoader
@@ -12,7 +12,7 @@ JVM中提供了三层的ClassLoader:
 
 ## 双亲委派机制
 使用双亲委派机制能够确保安全，防止危险代码的植入
-![](./images/双亲委派机制.png)
+![](https://gitee.com/cnuto/images/raw/master/image/双亲委派机制.png)
 当一个Hello.class文件被加载时。不考虑自定义类加载器，首先会在AppClassLoader中检查是否加载过，没有则一直往上查询。直到BootStrapClassLoader，已经没有父加载器了，这时考虑自己能否加载，如果自己无法加载，则下沉到子加载器中去加载，一直到最底层，如果没有任何加载器能够加载，则会报ClassNotFound异常
 
 ## 沙箱安全机制
@@ -37,7 +37,7 @@ JVM中提供了三层的ClassLoader:
 ## 栈
 程序：数据结构+算法
 栈：栈内存，主管程序的运行，生命周期和线程同步；线程结束，栈内存释放，==不存在垃圾回收问题==
-![](./images/栈堆方法区.jpg)
+![](https://gitee.com/cnuto/images/raw/master/image/栈堆方法区.jpg)
 
 ## 堆
 Heap,一个JVM只有一个堆内存，堆内存的大小是可以调节的
@@ -76,7 +76,7 @@ total=257425408字节	245MB
 GC两种：轻GC(普通GC)和重GC(FULL GC)
 算法：标记清除法，标记压缩，复制算法，引用计数器
 复制算法：
-![复制算法](./IMAGES/GC.jpg)
+![复制算法](https://gitee.com/cnuto/images/raw/master/image/GC.jpg)
 复制算法最佳使用场景：对象存活率较低时
 总结：
 - 内存效率：复制算法>标记清除算法>标记压缩算法(时间复杂度)

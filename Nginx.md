@@ -97,8 +97,8 @@ http块包括http全局块和server块
   - 进入tomcat的bin目录，./start.sh启动tomcat服务器
   - 对外开放访问的端口
   - 浏览器访问http://192.168.225.100:8080/
-  ![](./images/tomcat.jpg)
-  ![](./images/windows-nginx-tomcat.jpg)
+  ![](https://gitee.com/cnuto/images/raw/master/image/tomcat.jpg)
+  ![](https://gitee.com/cnuto/images/raw/master/image/windows-nginx-tomcat.jpg)
 - 具体配置
   - 在windows系统的host文件中进行域名和ip对应关系的配置
 ```java
@@ -113,7 +113,7 @@ server_name  192.168.225.100
   ```
 
   重启nginx,启动tomcat,访问www.123.com
-  ![](./images/nginxwww123.jpg)
+  ![](https://gitee.com/cnuto/images/raw/master/image/nginxwww123.jpg)
 
 ## Nginx配置实例-反向代理2
 
@@ -143,8 +143,8 @@ server_name  192.168.225.100
 ```
 - 开放对外访问的端口号 9001,8080,8081
 
-![](./images/nginx9001edu.jpg)
-![](./images/nginx9001vod.jpg)
+![](https://gitee.com/cnuto/images/raw/master/image/nginx9001edu.jpg)
+![](https://gitee.com/cnuto/images/raw/master/image/nginx9001vod.jpg)
 ## Nginx配置实例-负载均衡
 > 实现效果：浏览器地址栏输入 http://192.168.225.100/edu/a.html,负载均衡效果，平均到8080和8081端口中
 
@@ -171,8 +171,8 @@ server_name  192.168.225.100
         }
 
 ```
-![](./images/%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A18080.jpg)
-![](./images/%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A18081.jpg)
+![](https://gitee.com/cnuto/images/raw/master/image/负载均衡8080.jpg)
+![](https://gitee.com/cnuto/images/raw/master/image/负载均衡8081.jpg)
 ### nginx负载均衡分配方式
 #### 轮询（默认）
 每个请求按时间顺序逐一分配到不同的后端服务器，如果后端服务器宕机，能自动剔除

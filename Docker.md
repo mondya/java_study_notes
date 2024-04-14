@@ -308,7 +308,7 @@ todo
 
 ![image-20230305144520439](https://gitee.com/cnuto/images/raw/master/image/image-20230305144520439.png)
 
-- 按照公式 `docker tag 镜像:Tag Host:Port/Repository:Tag`，host，port为自己主机`docker tag 7cafd0fc013b localhost:5000/xhhubuntu:1.0`
+- 按照公式 `docker tag 镜像:Tag Host:Port/Repository:Tag`，host，port为自己主机`docker tag 7cafd0fc013b localhost:5000/xhhubuntu:1.0`：为镜像:Tag（或者单独镜像id）创建一个新的标签（Host:Port为需要推送的仓库，不填则使用默认仓库地址）
 
 ![image-20230305145412114](https://gitee.com/cnuto/images/raw/master/image/image-20230305145412114.png)
 

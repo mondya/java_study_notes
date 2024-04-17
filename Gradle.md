@@ -393,7 +393,7 @@ tasks.findByName('A').doFisrt{println 'A'}
 tasks.findByPath(':A').foFirt{pritnln 'A'}
 ```
 
-默认任务
+### 默认任务
 
 `defaultTasks 'A','B'`：项目build时自动执行A,B任务
 

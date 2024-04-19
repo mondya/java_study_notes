@@ -145,3 +145,96 @@ public class ConsumerController {
 - bootstrap.yml是系统级的，==优先级更高==
 - SpringCloud会创建一个Bootstrap Context，作为Spring应用的Application Context的==父上下文==，Bootstrap Context负责从外部源加载配置属性并解析配置。这两个上下文共享一个从外部获取的Environment。
 - Bootstrap属性有高优先级，默认情况下，它们不会被本地配置覆盖。BootstrapContext和ApplicationContext有着不同的约定，所以新增了一个bootstrap.yml文件，保证Bootstrap Context和Appplication Context配置的分离。
+
+#### 步骤
+
+- 配置bootstrap.yml文件
+
+```yml
+spring:
+  application:
+    name: cloud-consumer-80
+  cloud:
+    consul:
+      host: localhost
+      port: 8500
+      discovery:
+        service-name: ${spring.application.name}
+      config:
+        # 用于在consul中检索不同配置文件的分隔符
+        profile-separator: '-'
+        # 表示在consul中配置文件的格式为YAML格式
+        format: YAML
+```
+
+- 在consul的key/value页面中配置目录==config/==
+
+- 在config目录下配置服务名cloud-consumer-80
+
+![image-20240419201922655](https://gitee.com/cnuto/images/raw/master/image/image-20240419201922655.png)
+
+- 配置data
+
+![image-20240419202012505](https://gitee.com/cnuto/images/raw/master/image/image-20240419202012505.png)
+
+- 通过spring.profiles.active切换yml文件配置
+
+```java
+    @GetMapping("info")
+    public String getInfo(@Value("${xhh.info}") String info) {
+        return info;
+    }
+```
+
+![image-20240419202123007](https://gitee.com/cnuto/images/raw/master/image/image-20240419202123007.png)
+
+#### 动态刷新
+
+- ==@RefreshScope注解==
+
+```java
+    @Value("${xhh.info}")
+    private String info;
+    
+// 当info作为成员变量存在时，配置修改后不会刷新，需要在类上加入@RefreshScope注解
+    @GetMapping("info")
+    public String getInfo() {
+        return info;
+    }
+```
+
+#### 配置持久化
+
+//todo
+
+## 负载均衡LoadBalancer
+
+Spring Cloud LoadBalancer是由SpringCloud官方提供的一个开源的、简单易用的==客户端负载均衡器==，它包含在SpringCloud-commons中用来替换Ribbon组件。相比较于Ribbon,SpringCloud LoadBalancer不仅能够支持restTemplate，还支持WebClient（WebClient是Spring Web Flux作用提供的功能，可以实现响应式异步请求）。
+
+> loadBalancer本地负载均衡客户端VSnginx服务器负载均衡区别
+
+- Nginx是服务器负载均衡，客户端所有请求都会交给nginx，然后由nginx实现转发请求，即负载均衡是由服务端实现的。
+- LoadBalancer本地负载均衡，在调用微服务接口时，会在注册中心上获取注册信息服务列表之后缓存到本地JVM，从而在本地实现RPC远程服务调用技术
+
+![image-20240419213733592](https://gitee.com/cnuto/images/raw/master/image/image-20240419213733592.png)
+
+### 配置
+
+调用方引入jar包
+
+```xml
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+        </dependency>
+```
+
+被调用方存在多个实例
+
+8002
+
+![image-20240419225519451](https://gitee.com/cnuto/images/raw/master/image/image-20240419225519451.png)
+
+8001
+
+![image-20240419225548097](https://gitee.com/cnuto/images/raw/master/image/image-20240419225548097.png)

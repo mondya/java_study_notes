@@ -220,7 +220,7 @@ Spring Cloud LoadBalancer是由SpringCloud官方提供的一个开源的、简�
 
 ### 配置
 
-调用方引入jar包
+- 调用方引入jar包(如果引入过spring-cloud-starter-consul-discovery，可以不需要显示引入loadbalancer)
 
 ```xml
         <dependency>
@@ -228,6 +228,8 @@ Spring Cloud LoadBalancer是由SpringCloud官方提供的一个开源的、简�
             <artifactId>spring-cloud-starter-loadbalancer</artifactId>
         </dependency>
 ```
+
+- ==调用方使用restTemplate时需要注入添加@LoadBalanced==
 
 被调用方存在多个实例
 
@@ -238,3 +240,206 @@ Spring Cloud LoadBalancer是由SpringCloud官方提供的一个开源的、简�
 8001
 
 ![image-20240419225548097](https://gitee.com/cnuto/images/raw/master/image/image-20240419225548097.png)
+
+## OpenFeign
+
+### 配置
+
+#### 引入jar包
+
+```xml
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+```
+
+#### 调用方主启动类添加==@EnableFeignClients==注解
+
+#### 添加interface
+
+```java
+@FeignClient(name = "cloud-provider-payment")
+public interface PayApi {
+    
+    @RequestMapping(method = RequestMethod.GET, value = "/pay/list")
+    ResultVO getList();
+}
+```
+
+#### controller层引入
+
+```java
+@RestController
+@RequestMapping("consumer")
+public class ConsumerController {
+
+    @Autowired
+    private PayApi payApi;
+
+
+    @GetMapping
+    public ResultVO getPayList() {
+        return payApi.getList();
+    }
+    
+}
+```
+
+- 调用成功结果同上
+
+### 超时控制
+
+默认OpenFeign客户端==等待60秒==。
+
+#### yml文件配置
+
+```yml
+spring:
+  cloud:
+  	config:
+  	# 默认配置
+      default:
+        connectTimeout: 60000
+        # 单独设置调用某个服务的超时时间，覆盖默认配置
+      cloud-provider-payment:
+        connectTimeout: 60000
+```
+
+### 重试机制
+
+#### 添加config类
+
+```java
+@Configuration
+public class FeginConfig {
+    
+    @Bean
+    public Retryer retryer() {
+        // 默认不开启，无须单独设置
+//        return Retryer.NEVER_RETRY;
+        
+        
+        // period：间隔ms，maxPeriod：最大间隔s，maxAttempts：最大重试次数
+        return new Retryer.Default(100, 1, 3);
+    }
+}
+```
+
+### 性能优化HttpClient5
+
+如果不做特殊配置，OpenFeign默认使用JDK自带的HttpURLConnection发送HTTP请求，由于默认的HttpURLConnection没有连接池，性能和效率比较低。
+
+#### 引入jar
+
+```xml
+<!--        httpclient5-->
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <version>5.1.4</version>
+        </dependency>
+<!--        feign-hc5-->
+        <dependency>
+            <groupId>io.github.openfeign</groupId>
+            <artifactId>feign-hc5</artifactId>
+            <version>13.1</version>
+        </dependency>
+```
+
+#### 修改yml文件
+
+```yml
+  cloud:
+    consul:
+      host: localhost
+      port: 8500
+      discovery:
+        service-name: ${spring.application.name}
+      config:
+        # 用于在consul中检索不同配置文件的分隔符
+        profile-separator: '-'
+        # 表示在consul中配置文件的格式为YAML格式
+        format: YAML
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 60000
+          cloud-provider-payment:
+            connectTimeout: 60000
+      # 启用httpclient5
+      httpclient:
+        hc5:
+          enabled: true
+```
+
+### 请求响应压缩
+
+#### 对请求和响应进行GZIP压缩
+
+```properties
+spring.cloud.openfeign.compression.request.enabled=true
+spring.cloud.openfegin.compression.response.enabled=true
+```
+
+#### 细粒度化设置
+
+对请求压缩做一些更细致的设置，比如下面设置指定压缩的请求数据类型并设置了请求压缩的大小下限，只有操作这个大小的请求才会进行压缩。
+
+```properties
+spring.cloud.openfeign.compression.request.enabled=true
+spring.cloud.openfeign.compression.request.mine-types=text/xml,application/xml,application/json #触发压缩数据类型
+spring.cloud.openfeign.compression.request.min-request-size=2048 #最小触发压缩的大小
+```
+
+### 日志打印
+
+#### 配置类
+
+```java
+@Configuration
+public class FeginConfig {
+    
+    
+    @Bean
+    Logger.Level feginLogger() {
+        return Logger.Level.FULL;
+    }
+}
+```
+
+#### yml文件配置
+
+==logging.level==+含有@FeignClient注解的完整带包名的接口名+debug
+
+```yml
+---
+logging:
+  level:
+    com.xhh.feign.PayApi: debug      
+---
+```
+
+![image-20240422203336471](https://gitee.com/cnuto/images/raw/master/image/image-20240422203336471.png)
+
+## Resilience4j
+
+基于Spring Cloud Circuit Breaker实现
+
+### Circult Breaker
+
+“断路由”本身是一种开关装置，当某个服务单元发生故障之后，通过断路由的故障监控（类似熔断保险丝），==向调用方返回一个符合预期的，可处理的备选响应（Fallback），而不是长时间的等待或者抛出调用方无法处理的异常==，这样就保证了服务调用方的线程不会被长时间，不必要地占用，从而避免了故障在分布式系统的蔓延，最后导致雪崩。
+
+当一个组件或服务出现故障时，CircuitBreaker会迅速切换到OPEN状态，阻止请求发送到该组件或者服务从而避免更多的请求发送。
+
+- 断路由有三个普通状态：关闭（CLOSED），开启（OPEN），半开（HALF_OPEN），还有两个特殊状态：禁用（DISABLED），强制开启（FORCED_OPEN）
+- 当熔断器关闭时，所有的请求都会通过熔断器
+  - 如果失败率超过设定的阈值，熔断器就会从关闭状态转换成打开状态，这时所有的请求都会被拒绝。
+  - 当经过一段时间后，熔断器会从打开状态转换到半开状态，这时仅有一定数量的请求会被放入，并重新计算失败率
+  - 如果失败率超过阈值，则变为打开状态，如果失败率低于阈值，则变为关闭状态
+- 断路器使用滑动窗口来存储和统计调用的结果，可以选择基于调用数量的滑动窗口或者基于时间的滑动窗口
+  - 基于访问数量的滑动窗口统计了最近N次调用的返回接口（例如10次调用，5次失败，50%成功率），基于时间的滑动窗口统计最近N秒的调用返回结果（例如10次调用，5次调用时间超出设定值，则认为失败，50%成功率）
+- DISABLED和FORCED_OPEN
+  - 这两个状态不会生成熔断事件（除状态转换外），并且不会记录事件的成功和失败
+  - 退出这两个状态的唯一方法是触发状态转换或者重置熔断器

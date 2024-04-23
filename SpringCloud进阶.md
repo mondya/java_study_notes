@@ -427,7 +427,7 @@ logging:
 
 基于Spring Cloud Circuit Breaker实现
 
-### Circult Breaker
+### Circult Breaker（断路由）
 
 “断路由”本身是一种开关装置，当某个服务单元发生故障之后，通过断路由的故障监控（类似熔断保险丝），==向调用方返回一个符合预期的，可处理的备选响应（Fallback），而不是长时间的等待或者抛出调用方无法处理的异常==，这样就保证了服务调用方的线程不会被长时间，不必要地占用，从而避免了故障在分布式系统的蔓延，最后导致雪崩。
 
@@ -439,7 +439,122 @@ logging:
   - 当经过一段时间后，熔断器会从打开状态转换到半开状态，这时仅有一定数量的请求会被放入，并重新计算失败率
   - 如果失败率超过阈值，则变为打开状态，如果失败率低于阈值，则变为关闭状态
 - 断路器使用滑动窗口来存储和统计调用的结果，可以选择基于调用数量的滑动窗口或者基于时间的滑动窗口
-  - 基于访问数量的滑动窗口统计了最近N次调用的返回接口（例如10次调用，5次失败，50%成功率），基于时间的滑动窗口统计最近N秒的调用返回结果（例如10次调用，5次调用时间超出设定值，则认为失败，50%成功率）
+  - 基于访问数量的滑动窗口统计了最近N次调用的返回接口，基于时间的滑动窗口统计最近N秒的调用返回结果
 - DISABLED和FORCED_OPEN
   - 这两个状态不会生成熔断事件（除状态转换外），并且不会记录事件的成功和失败
   - 退出这两个状态的唯一方法是触发状态转换或者重置熔断器
+
+#### 配置属性
+
+![image-20240423203016747](https://gitee.com/cnuto/images/raw/master/image/image-20240423203016747.png)
+
+#### 调用方引入jar包
+
+```xml
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+```
+
+#### 调用方配置yml文件
+
+```yaml
+---
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        failure-rate-threshold: 50 # 设置50%的调用失败时打开断路器，操作失败请求百分比circuitbreaker变为OPEN状态
+        sliding-window-type: COUNT_BASED # 滑动窗口的类型
+        sliding-window-size: 6 # 滑动窗口的大小， COUNT_BASED表示6个请求；TIME_BASED表示6秒内
+        minimum-number-of-calls: 6 # 断路器计算失败率或慢调用率之前所需的最小样本（每个滑动窗口周期），如果为10，则必须记录10个样本，然后才能计算失败率，如果记录了9次调用，即使前面9次都失败，断路器也不会开启
+        automatic-transition-from-open-to-half-open-enabled: true #是否启用自动从开启状态过度到半开状态，默认值为true
+        wait-duration-in-open-state:
+          seconds: 5 # 从OPEN状态到HALF_OPEN状态需要等待5秒
+        # wait-duration-in-open-state: 5s，和上面等价，但是这个5s内调用失败但是5s之后调用会正常，上面那个5秒内再次调用一直失败，即使5s之后还是失败
+        permitted-number-of-calls-in-half-open-state: 2 # 半开状态下允许的请求数量,默认值10。在半开状态下，circuitbreaker将允许2个请求通过，如果有任何一个请求失败，则circuitbreaker将再次进入OPEN状态
+        record-exceptions:
+          - java.lang.Exception
+    instances:
+    # 被调用方实例
+      cloud-provider-payment:
+        base-config: default
+---
+```
+
+#### 调用方
+
+```java
+@RestController
+@RequestMapping("consumer/circuit")
+public class ConsumerCircuitController {
+
+    @Autowired
+    private PayApi payApi;
+
+    @GetMapping("/{id}")
+    @CircuitBreaker(name = "cloud-provider-payment", fallbackMethod = "myCircuitFallback")
+    public ResultVO getById(@PathVariable(name = "id") Long id) {
+        return payApi.getIdByCircuit(id);
+    }
+    
+    public ResultVO myCircuitFallback(Throwable throwable) {
+        return ResultVO.fail();
+    }
+}
+```
+
+#### 被调用方
+
+```java
+@RestController
+@RequestMapping("pay/circuit")
+@RequiredArgsConstructor
+public class PayCircuitController {
+
+    private final PayService payService;
+
+    @GetMapping("list/{id}")
+    public ResultVO getById(@PathVariable(name = "id") Long id) {
+        ResultVO resultVO = new ResultVO();
+        if (Objects.equals(id, -4)) {
+            throw new RuntimeException("系统异常");
+        }
+        resultVO.getResult().put("pay", payService.getById(id));
+        resultVO.getResult().put("from" ,  "cloud-provider-8001");
+        return resultVO;
+    }
+}
+```
+
+#### feign
+
+```java
+@FeignClient(name = "cloud-provider-payment")
+public interface PayApi {
+
+    @RequestMapping(method = RequestMethod.GET, value = "pay/circuit/list/{id}")
+    ResultVO getIdByCircuit(@PathVariable(name = "id") Long id);
+}
+```
+
+#### 正常访问
+
+![image-20240423220105437](https://gitee.com/cnuto/images/raw/master/image/image-20240423220105437.png)
+
+#### 测试熔断
+
+分别进行3次正常调用，3次异常调用，再次调用正常结果也返回系统繁忙
+
+![image-20240423215502705](https://gitee.com/cnuto/images/raw/master/image/image-20240423215502705.png)
+
+#### 测试半开状态
+
+5秒之后调用一次正常，一次失败，再次调用正常，返回系统繁忙
+
+![image-20240423215658229](https://gitee.com/cnuto/images/raw/master/image/image-20240423215658229.png)

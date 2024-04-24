@@ -220,7 +220,9 @@ Spring Cloud LoadBalancer是由SpringCloud官方提供的一个开源的、简�
 
 ### 配置
 
-- 调用方引入jar包(如果引入过spring-cloud-starter-consul-discovery，可以不需要显示引入loadbalancer)
+#### 引入jar包
+
+调用方引入jar包(如果引入过spring-cloud-starter-consul-discovery，可以不需要显示引入loadbalancer)
 
 ```xml
         <dependency>
@@ -229,7 +231,7 @@ Spring Cloud LoadBalancer是由SpringCloud官方提供的一个开源的、简�
         </dependency>
 ```
 
-- ==调用方使用restTemplate时需要注入添加@LoadBalanced==
+#### ==调用方使用restTemplate时需要注入添加@LoadBalanced==
 
 被调用方存在多个实例
 
@@ -248,9 +250,21 @@ Spring Cloud LoadBalancer是由SpringCloud官方提供的一个开源的、简�
 #### 引入jar包
 
 ```xml
-        <dependency>
+        <!--引入feigin支持-->
+		<dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+		<!--注册服务到注册中心-->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-consul-discovery</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 ```
 
@@ -427,7 +441,7 @@ logging:
 
 基于Spring Cloud Circuit Breaker实现
 
-### Circult Breaker（断路由）
+### Circult Breaker（服务熔断+服务降级）
 
 “断路由”本身是一种开关装置，当某个服务单元发生故障之后，通过断路由的故障监控（类似熔断保险丝），==向调用方返回一个符合预期的，可处理的备选响应（Fallback），而不是长时间的等待或者抛出调用方无法处理的异常==，这样就保证了服务调用方的线程不会被长时间，不必要地占用，从而避免了故障在分布式系统的蔓延，最后导致雪崩。
 
@@ -451,7 +465,23 @@ logging:
 #### 调用方引入jar包
 
 ```xml
+        <!--引入feigin支持-->
+		<dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+		<!--注册服务到注册中心-->
         <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-consul-discovery</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+		<dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
         </dependency>
@@ -461,7 +491,7 @@ logging:
         </dependency>
 ```
 
-#### 调用方配置yml文件
+#### 调用方配置yml文件（按照次数）
 
 ```yaml
 ---
@@ -487,7 +517,7 @@ resilience4j:
 ---
 ```
 
-#### 调用方
+##### 调用方
 
 ```java
 @RestController
@@ -503,13 +533,15 @@ public class ConsumerCircuitController {
         return payApi.getIdByCircuit(id);
     }
     
+    
+    // 服务降级后调用的方法
     public ResultVO myCircuitFallback(Throwable throwable) {
         return ResultVO.fail();
     }
 }
 ```
 
-#### 被调用方
+##### 被调用方
 
 ```java
 @RestController
@@ -532,7 +564,7 @@ public class PayCircuitController {
 }
 ```
 
-#### feign
+##### feign
 
 ```java
 @FeignClient(name = "cloud-provider-payment")
@@ -543,18 +575,253 @@ public interface PayApi {
 }
 ```
 
-#### 正常访问
+##### 正常访问
 
 ![image-20240423220105437](https://gitee.com/cnuto/images/raw/master/image/image-20240423220105437.png)
 
-#### 测试熔断
+##### 测试熔断
 
-分别进行3次正常调用，3次异常调用，再次调用正常结果也返回系统繁忙
+分别进行3次正常调用，3次异常调用，再次调用正常数据也返回系统繁忙
 
 ![image-20240423215502705](https://gitee.com/cnuto/images/raw/master/image/image-20240423215502705.png)
 
-#### 测试半开状态
+##### 测试半开状态
 
 5秒之后调用一次正常，一次失败，再次调用正常，返回系统繁忙
 
 ![image-20240423215658229](https://gitee.com/cnuto/images/raw/master/image/image-20240423215658229.png)
+
+#### 调用方配置yml文件（按照时间）
+
+```yaml
+resilience4j:
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 10s # timelimiter默认限制远程1s,超过1s就超时异常，配置了降级就走降级逻辑
+  circuitbreaker:
+    configs:
+      default:
+        failure-rate-threshold: 50 # 设置50%的调用失败时打开断路器，操作失败请求百分比circuitbreaker变为OPEN状态
+        slow-call-duration-threshold: 2s # 慢调用时间阈值，高于此阈值视为慢调用并增加慢调用比例
+        slow-call-rate-threshold: 30 # 慢调用比例阈值，慢调用比例达到阈值，circuitbreaker变为OPEN状态
+        sliding-window-type: time_based # 窗口类型
+        sliding-window-size: 2 # 滑动窗口大小，TIME_BASED表示统计2秒内的调用结果
+        minimum-number-of-calls: 2 # 断路器计算失败率或慢调用率之前所需的最小样本
+        permitted-number-of-calls-in-half-open-state: 2 # 半开状态下允许的请求数量,默认值10。在半开状态下，circuitbreaker将允许2个请求通过，如果有任何一个请求失败，则circuitbreaker将再次进入OPEN状态
+        wait-duration-in-open-state: 5s # 从OPEN状态到HALF_OPEN状态需要等待5秒
+        record-exceptions:
+          - java.lang.Exception
+    
+    instances:
+      cloud-provider-payment:
+        base-config: default
+```
+
+##### 被调用方
+
+```JAVA
+    @GetMapping("list/{id}")
+    public ResultVO getById(@PathVariable(name = "id") Long id) {
+        ResultVO resultVO = new ResultVO();
+        if (Objects.equals(id, -4L)) {
+            throw new RuntimeException("系统异常");
+        }
+        
+        // 增加超时时间
+        if (Objects.equals(id , 9999L)) {
+            try {
+                Thread.sleep(5000);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        resultVO.getResult().put("pay", payService.getById(id));
+        resultVO.getResult().put("from" ,  "cloud-provider-8001");
+        return resultVO;
+    }
+```
+
+##### 测试熔断
+
+同一时间多次调用超时接口
+
+![image-20240424215040192](https://gitee.com/cnuto/images/raw/master/image/image-20240424215040192.png)
+
+### BulkHead（隔离）
+
+Resilience4j提供了两种隔离的实现方式，可以限制并发执行的数量
+
+- SemaphoreBulkhead使用了信号量
+- FixedThreadPoolBulkhead使用了有界队列和固定大小线程池
+
+#### 引入jar包
+
+```xml
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-bulkhead</artifactId>
+        </dependency>
+```
+
+#### SemaphoreBulkhead
+
+##### yml配置
+
+```yaml
+resilience4j:
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 10s # timelimiter默认限制远程1s,超过1s就超时异常，配置了降级就走降级逻辑
+  circuitbreaker:
+    configs:
+      default:
+        failure-rate-threshold: 50 # 设置50%的调用失败时打开断路器，操作失败请求百分比circuitbreaker变为OPEN状态
+        slow-call-duration-threshold: 2s # 慢调用时间阈值，高于此阈值视为慢调用并增加慢调用比例
+        slow-call-rate-threshold: 30 # 慢调用比例阈值，慢调用比例达到阈值，circuitbreaker变为OPEN状态
+        sliding-window-type: time_based # 窗口类型
+        sliding-window-size: 2 # 滑动窗口大小，TIME_BASED表示统计两秒内的调用结果
+        minimum-number-of-calls: 2 # 断路器计算失败率或慢调用率之前所需的最小样本
+        permitted-number-of-calls-in-half-open-state: 2 # 半开状态下允许的请求数量,默认值10。在半开状态下，circuitbreaker将允许2个请求通过，如果有任何一个请求失败，则circuitbreaker将再次进入OPEN状态
+        wait-duration-in-open-state: 5s # 从OPEN状态到HALF_OPEN状态需要等待5秒
+        record-exceptions:
+          - java.lang.Exception
+    
+    instances:
+      cloud-provider-payment:
+        base-config: default
+  bulkhead:
+    configs:
+      default:
+        max-concurrent-calls: 2 # 隔离允许并发线程执行的最大数量，默认25
+        max-wait-duration: 1s # 当达到并发调用数量时，线程的阻塞时间，默认0
+    instances:
+      cloud-provider-payment:
+        base-config: default
+```
+
+##### 调用方
+
+```java
+@RestController
+@RequestMapping("consumer/circuit")
+public class ConsumerCircuitController {
+
+    @Autowired
+    private PayApi payApi;
+
+    @GetMapping("/{id}")
+    @CircuitBreaker(name = "cloud-provider-payment", fallbackMethod = "myCircuitFallback")
+    public ResultVO getById(@PathVariable(name = "id") Long id) {
+        return payApi.getIdByCircuit(id);
+    }
+    
+    public ResultVO myCircuitFallback(Throwable throwable) {
+        return ResultVO.fail();
+    }
+
+
+    @GetMapping("/bulkhead/{id}")
+    @Bulkhead(name = "cloud-provider-payment", fallbackMethod = "myCircuitFallback", type = Bulkhead.Type.SEMAPHORE)
+    public ResultVO getByBulkhead(@PathVariable(name = "id") Long id) {
+        return payApi.getIdByCircuitBulkhead(id);
+    }
+    
+}
+```
+
+##### 测试触发隔离
+
+同时请求两次慢调用，在调用正常数据接口返回报错，由于maxConcurrentCalls=2，其他请求降级
+
+![image-20240424222933576](https://gitee.com/cnuto/images/raw/master/image/image-20240424222933576.png)
+
+#### FixedThreadPoolBulkhead
+
+##### yml配置
+
+```yaml
+resilience4j:
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 10s # timelimiter默认限制远程1s,超过1s就超时异常，配置了降级就走降级逻辑
+  circuitbreaker:
+    configs:
+      default:
+        failure-rate-threshold: 50 # 设置50%的调用失败时打开断路器，操作失败请求百分比circuitbreaker变为OPEN状态
+        slow-call-duration-threshold: 2s # 慢调用时间阈值，高于此阈值视为慢调用并增加慢调用比例
+        slow-call-rate-threshold: 30 # 慢调用比例阈值，慢调用比例达到阈值，circuitbreaker变为OPEN状态
+        sliding-window-type: time_based # 窗口类型
+        sliding-window-size: 2 # 滑动窗口大小，TIME_BASED表示统计两秒内的调用结果
+        minimum-number-of-calls: 2 # 断路器计算失败率或慢调用率之前所需的最小样本
+        permitted-number-of-calls-in-half-open-state: 2 # 半开状态下允许的请求数量,默认值10。在半开状态下，circuitbreaker将允许2个请求通过，如果有任何一个请求失败，则circuitbreaker将再次进入OPEN状态
+        wait-duration-in-open-state: 5s # 从OPEN状态到HALF_OPEN状态需要等待5秒
+        record-exceptions:
+          - java.lang.Exception
+    
+    instances:
+      cloud-provider-payment:
+        base-config: default
+#  bulkhead:
+#    configs:
+#      default:
+#        max-concurrent-calls: 2 # 隔离允许并发线程执行的最大数量，默认25
+#        max-wait-duration: 1s # 当达到并发调用数量时，线程的阻塞时间，默认0
+#    instances:
+#      cloud-provider-payment:
+#        base-config: default
+  thread-pool-bulkhead:
+    configs:
+      default:
+        core-thread-pool-size: 1 # 最多支持max-thread + queue-capacity个队列
+        max-thread-pool-size: 1
+        queue-capacity: 1
+    instances:
+      cloud-provider-payment:
+        base-config: default
+# spring.cloud.openfeign.circuitbreaker.group.enable=false，避免对线程池进行分组管理        
+```
+
+##### 调用方
+
+```java
+@RestController
+@RequestMapping("consumer/circuit")
+public class ConsumerCircuitController {
+
+    @Autowired
+    private PayApi payApi;
+
+
+
+    @GetMapping("/bulkhead/{id}")
+    @Bulkhead(name = "cloud-provider-payment", fallbackMethod = "myCircuitFallback", type = Bulkhead.Type.SEMAPHORE)
+    public ResultVO getByBulkhead(@PathVariable(name = "id") Long id) {
+        return payApi.getIdByCircuitBulkhead(id);
+    }
+
+    // 需要返回CompletableFuture
+    @GetMapping("/bulkhead/threadPool/{id}")
+    @Bulkhead(name = "cloud-provider-payment", fallbackMethod = "myCircuitFallbackFuture", type = Bulkhead.Type.THREADPOOL)
+    public CompletableFuture<ResultVO> getByBulkheadThreadPool(@PathVariable(name = "id") Long id) {
+        return CompletableFuture.supplyAsync(() -> {
+            return payApi.getIdByCircuitBulkhead(id);
+        });
+    }
+
+    public CompletableFuture<ResultVO> myCircuitFallbackFuture(Throwable throwable) {
+        return CompletableFuture.supplyAsync(ResultVO::fail);
+    }
+}
+```
+
+##### 注意点
+
+- 参数id的值不同才会触发，相同请求共享一个核心线程池
+-  spring.cloud.openfeign.circuitbreaker.group.enable=false或者不进行设置，避免对线程池进行分组管理  

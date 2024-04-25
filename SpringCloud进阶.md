@@ -825,3 +825,79 @@ public class ConsumerCircuitController {
 
 - 参数id的值不同才会触发，相同请求共享一个核心线程池
 -  spring.cloud.openfeign.circuitbreaker.group.enable=false或者不进行设置，避免对线程池进行分组管理  
+
+### Ratelimiter（限流器）
+
+限流算法
+
+#### 漏斗算法（Leaky Bucket）
+
+一个固定容量的漏桶，按照设定常量固定速率流出水滴，类似医院打吊针。如果流入水滴超出了桶的容量，则流入的水滴将会溢出（被丢弃），而漏桶的容量是不变的。
+
+缺点：桶的大小（burst），漏洞的大小（rate）两个参数，其中rate是固定参数，==对于存在突发特性的流量来说缺乏效率==。
+
+![image-20240425203636627](https://gitee.com/cnuto/images/raw/master/image/image-20240425203636627.png)
+
+#### ==令牌桶算法（Token Bucket）(SpringCloud默认算法)==
+
+#### ![image-20240425204304791](https://gitee.com/cnuto/images/raw/master/image/image-20240425204304791.png)
+
+#### 滚动时间窗（tumbling time window）
+
+允许固定数量的请求进入（比如1秒内允许4次请求），超过数量执行排队或者拒绝策略，等下一段时间进入。
+
+缺点：间隔临界时间的请求可能会超过系统限制，导致系统崩溃
+
+#### 滑动时间窗口（sliding time window）
+
+把固定时间片进行划分并且随着时间的移动，移动方式为开始时间点变为时间列表中的第2个时间点，结束时间点增加一个时间点，不断重复，通过这种方式避开计数器临界点问题。
+
+#### 调用方引入jar包
+
+```xml
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-ratelimiter</artifactId>
+        </dependency>
+```
+
+#### yml文件配置
+
+```yaml
+resilience4j:
+  ratelimiter:
+    configs:
+      default:
+        limit-for-period: 2 # 在一次刷新周期内，允许执行的最大请求数
+        limit-refresh-period: 1s # 限流器每隔limit-refresh-period刷新一次，将允许处理的最大请求数量重置为limit-for-period
+        timeout-duration: 1 #线程等待权限的默认等待时间
+    instances:
+      cloud-provider-payment:
+        base-config: default
+```
+
+#### 调用方代码
+
+```java
+@RestController
+@RequestMapping("consumer/circuit")
+public class ConsumerCircuitController {
+
+    @Autowired
+    private PayApi payApi;
+    
+    public ResultVO myCircuitFallback(Throwable throwable) {
+        return ResultVO.fail();
+    }
+
+
+    @GetMapping("/rateLimit/{id}")
+    @RateLimiter(name = "cloud-provider-payment", fallbackMethod = "myCircuitFallback")
+    public ResultVO getByRateLimit(@PathVariable(name = "id") Long id) {
+        return payApi.getIdByRateLimit(id);
+    }
+```
+
+#### 验证
+
+1s内点击超过2次接口，触发限流

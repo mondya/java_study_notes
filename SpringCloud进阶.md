@@ -328,6 +328,7 @@ spring:
 @Configuration
 public class FeginConfig {
     
+    // http状态码500
     @Bean
     public Retryer retryer() {
         // 默认不开启，无须单独设置

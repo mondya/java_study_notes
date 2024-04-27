@@ -145,6 +145,7 @@ server_name  192.168.225.100
 
 ![](https://gitee.com/cnuto/images/raw/master/image/nginx9001edu.jpg)
 ![](https://gitee.com/cnuto/images/raw/master/image/nginx9001vod.jpg)
+
 ## Nginx配置实例-负载均衡
 > 实现效果：浏览器地址栏输入 http://192.168.225.100/edu/a.html,负载均衡效果，平均到8080和8081端口中
 

@@ -310,14 +310,26 @@ public class ConsumerController {
 
 ```yml
 spring:
+  application:
+    name: cloud-consumer-81
   cloud:
-  	config:
-  	# 默认配置
-      default:
-        connectTimeout: 60000
-        # 单独设置调用某个服务的超时时间，覆盖默认配置
-      cloud-provider-payment:
-        connectTimeout: 60000
+    consul:
+      host: localhost
+      port: 8500
+      discovery:
+        service-name: ${spring.application.name}
+      config:
+        # 用于在consul中检索不同配置文件的分隔符
+        profile-separator: '-'
+        # 表示在consul中配置文件的格式为YAML格式
+        format: YAML
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 60000
+          cloud-provider-payment:
+            connectTimeout: 60000
 ```
 
 ### 重试机制

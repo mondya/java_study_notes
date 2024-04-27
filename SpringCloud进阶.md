@@ -914,3 +914,6 @@ public class ConsumerCircuitController {
 #### 验证
 
 1s内点击超过2次接口，触发限流
+
+## Micrometer（链路追踪）
+

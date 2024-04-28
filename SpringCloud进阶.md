@@ -340,6 +340,7 @@ spring:
 @Configuration
 public class FeginConfig {
     
+    // http状态码500
     @Bean
     public Retryer retryer() {
         // 默认不开启，无须单独设置
@@ -921,3 +922,7 @@ public class ConsumerCircuitController {
 ![image-20240428154324964](https://gitee.com/cnuto/images/raw/master/image/image-20240428154324964.png)
 
 ## GateWay（网关）
+=======
+## Micrometer（链路追踪）
+
+>>>>>>> faef6fd1632eca0c85cb5b0ab2c34d11567a04eb

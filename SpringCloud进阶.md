@@ -913,3 +913,11 @@ public class ConsumerCircuitController {
 #### 验证
 
 1s内点击超过2次接口，触发限流
+
+## Micrometer+ZipKin（分布式链路追踪搜集+展示）
+
+一条链路通过TraceId唯一标识，Span标识发起的请求信息，各Span通过parent id 关联
+
+![image-20240428154324964](https://gitee.com/cnuto/images/raw/master/image/image-20240428154324964.png)
+
+## GateWay（网关）

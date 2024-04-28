@@ -922,3 +922,144 @@ public class ConsumerCircuitController {
 ![image-20240428154324964](https://gitee.com/cnuto/images/raw/master/image/image-20240428154324964.png)
 
 ## GateWay（网关）
+
+GateWay是spring生态系统之上构建的API网关服务，旨在为微服务架构提供一种简单有效的==统一的API路由管理方式==。
+
+![image-20240428212406341](https://gitee.com/cnuto/images/raw/master/image/image-20240428212406341.png)
+
+- Spring Cloud GateWay组件的核心是一系列的过滤器，通过这些过滤器可以将客户端发送的请求转发（路由）到对应的微服务。
+- Spring Cloud GateWay是加在整个微服务最前沿的防火墙和代理器，隐藏微服务结点IP端口信息，从而加强安全保护。
+- Spring Cloud GateWay本身也是一个微服务，需要注册到服务注册中心。
+
+![image-20240428212722024](https://gitee.com/cnuto/images/raw/master/image/image-20240428212722024.png)
+
+### 三大核心组件
+
+#### Route（路由）
+
+路由是构建网关的基本模块，它由ID，目标URL，一系列的断言和过滤器组成，如果断言为true，则匹配该路由
+
+#### Predicate（断言）
+
+匹配HTTP请求中的所有内容（例如请求头或者请求参数），如果请求与断言
+
+#### Filter（过滤）
+
+使用过滤器可以在请求被路由前或者之后进行修改
+
+### 工作流程
+
+![image-20240428214257582](https://gitee.com/cnuto/images/raw/master/image/image-20240428214257582.png)
+
+客户端向GateWay发送请求，然后在GateWay Handler Mapping中找到与请求相匹配的路由，将其发送到GateWay Web Handler。Handler再通过指定的过滤器链来将请求发送到我们实际的服务执行业务逻辑，然后返回。过滤器之间使用虚线是因为过滤器可能会在发送代理请求前或者之后执行逻辑。
+
+在Pre类型的过滤器可以做参数校验，权限校验，流量监控，日志输出，协议转换等
+
+在Post类型的过滤器可以做响应内容，响应头修改，日志输出，流量监控
+
+### 配置
+
+#### 引入jar包（创建新项目gateway）
+
+```xml
+    <dependencies>
+        <dependency>
+            <groupId>com.xhh</groupId>
+            <artifactId>cloud-common</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba.fastjson2</groupId>
+            <artifactId>fastjson2</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <!--将 scope 设置为 provided 的依赖不会参与项目的war打包。假如打包为jar，设置与不设置provided并不会影响maven将依赖打包到jar当中-->
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-consul-discovery</artifactId>
+        </dependency>
+
+        <!--网关是响应式编程删除spring-boot-starter-web，引入gateway使用netty作为启动项目的容器-->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-gateway</artifactId>
+        </dependency>
+    </dependencies>
+```
+
+#### yml文件配置
+
+```yaml
+server:
+  port: 9527
+---
+spring:
+  application:
+    name: cloud-gateway
+  cloud:
+    consul:
+      host: localhost
+      port: 8500
+      discovery:
+        prefer-ip-address: true
+        service-name: ${spring.application.name}
+    gateway:
+      routes:
+        - id: pay_routh1 # 路由的id，没有固定规则但是要求尽量统一
+          uri: lb://cloud-provider-payment # 匹配后提供服务的路由地址
+          predicates:
+            - Path=/pay/gateway/list/** # 断言，路径相匹配的才会被路由
+        - id: pay_routh2 # 路由的id，没有固定规则但是要求尽量统一
+          uri: lb://cloud-provider-payment # 匹配后提供服务的路由地址,lb:loadbalancer用于指示该路由的目标服务采用负载均衡的方式进行请求转发
+          predicates:
+            - Path=/pay/gateway/info/** # 断言，路径相匹配的才会被路由
+```
+
+#### 被调用方代码
+
+```java
+@RestController
+@RequestMapping("pay/gateway")
+@RequiredArgsConstructor
+public class PayGateWayController {
+
+
+    private final PayService payService;
+
+    @GetMapping("list")
+    public ResultVO getPayList(@RequestParam(value = "searchValue", required = false) String searchValue, @RequestParam(value = "p", required = false, defaultValue = "1") int p, @RequestParam(value = "s", required = false, defaultValue = "10") int s) {
+        ResultVO resultVO = new ResultVO();
+        resultVO.setResult(payService.getPayList(searchValue, p - 1, s));
+        resultVO.setMsg("from" +  "cloud-gateway-provider-8001");
+        return resultVO;
+    }
+
+
+    @GetMapping("info")
+    public ResultVO getInfo(@RequestParam(value = "searchValue", required = false) String searchValue, @RequestParam(value = "p", required = false, defaultValue = "1") int p, @RequestParam(value = "s", required = false, defaultValue = "10") int s) {
+        ResultVO resultVO = new ResultVO();
+        resultVO.getResult().put("id", IdUtil.fastUUID());
+        return resultVO;
+    }
+}
+```
+
+#### 验证
+
+调用http://localhost:9527/pay/gateway/info
+
+![image-20240428231541130](https://gitee.com/cnuto/images/raw/master/image/image-20240428231541130.png)

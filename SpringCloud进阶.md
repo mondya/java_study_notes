@@ -1063,3 +1063,47 @@ public class PayGateWayController {
 调用http://localhost:9527/pay/gateway/info
 
 ![image-20240428231541130](https://gitee.com/cnuto/images/raw/master/image/image-20240428231541130.png)
+
+### Predicate
+
+#### After
+
+#### Between
+
+#### Cookie
+
+```yaml
+          predicates:
+            - Path=/pay/gateway/info/** # 断言，路径相匹配的才会被路由
+            - Cookie=username,xhh #正则表达式 key=username,value=xhh
+```
+
+![image-20240430220455647](https://gitee.com/cnuto/images/raw/master/image/image-20240430220455647.png)
+
+#### Header
+
+```yaml
+- Header=X-Request-Id, \d+ # 正则表达式，key=X-Request-Id,value必须是数字
+```
+
+![image-20240430221138709](https://gitee.com/cnuto/images/raw/master/image/image-20240430221138709.png)
+
+#### Host
+
+```yaml
+- Host=**.xhh.com,**.baidu.com
+```
+
+![image-20240430221620739](https://gitee.com/cnuto/images/raw/master/image/image-20240430221620739.png)
+
+#### Query
+
+配置请求必须携带的参数
+
+#### RemoteAddr
+
+限制请求的地址
+
+#### Method
+
+配置请求的方式：POST, GET

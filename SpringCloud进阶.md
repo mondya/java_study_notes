@@ -1107,3 +1107,79 @@ public class PayGateWayController {
 #### Method
 
 配置请求的方式：POST, GET
+
+### 自定义Predicate
+
+#### 配置RoutePredicateFactory
+
+```java
+@Component
+// 配置必须是以RoutePredicateFactory结尾
+public class MyRoutePredicateFactory extends AbstractRoutePredicateFactory<MyRoutePredicateFactory.Config> {
+
+
+    public MyRoutePredicateFactory() {
+        super(Config.class);
+    }
+
+    // 使配置支持短配置- My=xhh
+    @Override
+    public List<String> shortcutFieldOrder() {
+        return Collections.singletonList("name");
+    }
+
+    @Override
+    public Predicate<ServerWebExchange> apply(Config config) {
+        return new GatewayPredicate() {
+            @Override
+            public boolean test(ServerWebExchange serverWebExchange) {
+                String name = serverWebExchange.getRequest().getQueryParams().getFirst("name");
+                if (!StringUtils.hasLength(name)) {
+                    return false;
+                }
+                
+                if (Objects.equals(name, config.getName())) {
+                    return true;
+                }
+                return false;
+            }
+        };
+    }
+
+    
+    @Getter
+    @Validated
+    public static class Config {
+        @NotNull
+        @Setter
+        private String name;
+    }
+}
+```
+
+#### yml文件配置
+
+```yaml
+    gateway:
+      routes:
+        - id: pay_routh1 # 路由的id，没有固定规则但是要求尽量统一
+          uri: lb://cloud-provider-payment # 匹配后提供服务的路由地址,lb:loadbalancer用于指示该路由的目标服务采用负载均衡的方式进行请求转发
+          predicates:
+            - Path=/pay/gateway/list/** # 断言，路径相匹配的才会被路由
+        - id: pay_routh2 # 路由的id，没有固定规则但是要求尽量统一
+          uri: lb://cloud-provider-payment # 匹配后提供服务的路由地址
+          predicates:
+            - Path=/pay/gateway/info/** # 断言，路径相匹配的才会被路由
+              # 如果MyRoutePredicateFactory没有重写shortcutFieldOrder，那么需要使用这种方式填写
+#            - name: My
+#              args:
+#                name: xhh
+            # 判断两次，先判断xhh，如果相等返回true，在判断jy
+            - My=xhh
+            - My=jy
+```
+
+### 自定义Filter
+
+- 全局默认过滤器Global Filters，gateway出厂默认，主要作用于所有的路由，不需要在配置文件中配置，作用在所有的路由上，实现GlobalFilter接口即可
+- 单一内置过滤器GatewayFilter，网关过滤器，主要用于单一路由或者某个路由分组

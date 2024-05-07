@@ -1183,3 +1183,92 @@ public class MyRoutePredicateFactory extends AbstractRoutePredicateFactory<MyRou
 
 - 全局默认过滤器Global Filters，gateway出厂默认，主要作用于所有的路由，不需要在配置文件中配置，作用在所有的路由上，实现GlobalFilter接口即可
 - 单一内置过滤器GatewayFilter，网关过滤器，主要用于单一路由或者某个路由分组
+
+#### 全局过滤器
+
+```java
+@Component
+@Slf4j
+public class MyGlobalFilter implements GlobalFilter, Ordered {
+
+    public static final String BEGIN_TIME = "begin_Time";
+
+    @Override
+    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        exchange.getAttributes().put(BEGIN_TIME, System.currentTimeMillis());
+        return chain.filter(exchange).then(Mono.fromRunnable(() -> {
+            Long beginTime = exchange.getAttribute(BEGIN_TIME);
+            if (beginTime != null) {
+                log.info("访问主机:{}", exchange.getRequest().getURI().getHost());
+                log.info("访问端口:{}", exchange.getRequest().getURI().getPort());
+                log.info("访问接口url:{}", exchange.getRequest().getURI().getPath());
+                log.info("访问参数:{}", exchange.getRequest().getQueryParams());
+                log.info("访问耗时:{}", System.currentTimeMillis() - beginTime);
+            }
+        }));
+    }
+
+    /**
+     * 数字越小，优先级越高
+     *
+     * @return
+     */
+    @Override
+    public int getOrder() {
+        return 0;
+    }
+}
+```
+
+#### 自定义过滤器
+
+```java
+@Component
+@Slf4j
+/**
+ * 自定义过滤器，必须以GatewayFillterFacotry结尾
+ */
+public class MyGatewayFilterFactory extends AbstractGatewayFilterFactory<MyGatewayFilterFactory.Config> {
+    
+    MyGatewayFilterFactory() {
+        super(Config.class);
+    }
+    
+    @Override
+    public List<String> shortcutFieldOrder() {
+        return Collections.singletonList("status");
+    }
+
+    @Override
+    public GatewayFilter apply(MyGatewayFilterFactory.Config config) {
+        return new GatewayFilter() {
+            @Override
+            public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+                ServerHttpRequest request = exchange.getRequest();
+                log.info("get status:{}", config.getStatus());
+                if (request.getQueryParams().containsKey("xhh")) {
+                    return chain.filter(exchange);
+                } else {
+                    exchange.getResponse().setStatusCode(HttpStatus.BAD_REQUEST);
+                    return exchange.getResponse().setComplete();
+                }
+            }
+        };
+    }
+    
+    public static class Config {
+        @Setter
+        @Getter
+        private Integer status;
+    }
+}
+```
+
+#### 自定义filter的yml文件配置
+
+```yaml
+          filters:
+            - My=1    
+```
+
+# SpringCloudAlibaba

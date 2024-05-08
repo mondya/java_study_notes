@@ -1,4 +1,4 @@
-# SpringCloud
+#  SpringCloud
 
 ## 服务注册与发现
 
@@ -1272,3 +1272,60 @@ public class MyGatewayFilterFactory extends AbstractGatewayFilterFactory<MyGatew
 ```
 
 # SpringCloudAlibaba
+
+## Nacos
+
+### 引入Jar包
+
+```xml
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+```
+
+### 配置yml文件
+
+```yaml
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/mall?characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&rewriteBatchedStatements=true&allowPublicKeyRetrieval=true
+    username: root
+    password: xhh1999.02.10
+    type: com.alibaba.druid.pool.DruidDataSource
+#  profiles:
+#    active: de
+  application:
+    name: cloud-consumer-81
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        service: ${spring.application.name}
+        group: pay # 调用方和被调用方需要在同一个组
+        namespace: 5edeff2b-485b-4858-9fdd-5cc28e6ce47d # 同一个命名空间
+```
+
+### 使用FeignClient注意点
+
+==特别注意：和consul不同的是，consul包含了loadbalancer包，不需要显示引入，但是使用Nacos+openFeign需要显式引入loadbalancer==
+
+```xml
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+        </dependency>
+```
+
+### namespace-group-dataId
+
+nacos数据模型Key由三元组唯一确定，Namespace默认是public，分组默认是DEFAULT_GROUP。
+
+![image-20240508223140543](https://gitee.com/cnuto/images/raw/master/image/image-20240508223140543.png)
+
+- 类似于Java中的包名和类名，最外层的Namespace可以用来区分部署环境，Group和DataID逻辑上区分两个目标对象；
+
+- ==默认情况下，Namespace=public, Group=DEFAULT_GROUP==
+
+## Sentinel

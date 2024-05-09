@@ -1329,3 +1329,140 @@ nacos数据模型Key由三元组唯一确定，Namespace默认是public，分组
 - ==默认情况下，Namespace=public, Group=DEFAULT_GROUP==
 
 ## Sentinel
+
+### 安装
+
+下载jar包启动
+
+```shell
+java -jar sentinel-dashboard-2.0.0-alpha-preview.jar
+# 默认端口8080
+```
+
+#### 引入jar包
+
+```xml
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
+        </dependency>
+```
+
+#### 编写controller接口
+
+```java
+@RestController
+public class FlowLimitController {
+
+    @GetMapping("/testA")
+    public String testA() {
+        return "testA";
+    }
+
+    @GetMapping("/testB")
+    public String testB() {
+        return "testB";
+    }
+
+    @GetMapping("/testC")
+    public String testC() {
+        return "testC";
+    }
+}
+```
+
+
+
+#### 配置yml文件
+
+```yaml
+server:
+  port: 8401
+---
+spring:
+  application:
+    name: cloudalibaba-setinel-8401
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/mall?characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&rewriteBatchedStatements=true&allowPublicKeyRetrieval=true
+    username: root
+    password: xhh1999.02.10
+    type: com.alibaba.druid.pool.DruidDataSource
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848 # nacos注册中心地址
+        service: cloudalibaba-setinel
+        group: pay # 同一个组
+        namespace: 5edeff2b-485b-4858-9fdd-5cc28e6ce47d # 同一个命名空间
+    sentinel:
+      transport:
+        dashboard: localhost:8080 # sentinel控制台地址
+        port: 8719 # 默认8719端口，加入被占用会自动从8719开始依次加1，直至找到未被占用的端口
+```
+
+#### 验证
+
+==由于sentinel采用懒加载，需要在注册的项目上调用接口才会显示==
+
+![image-20240509212433018](https://gitee.com/cnuto/images/raw/master/image/image-20240509212433018.png)
+
+### 流控模式
+
+Sentinel能够对流量进行控制，主要是监控应用的QPS流量或者并发线程数等指标，如果达到指定的阈值，就会被流量进行控制，以避免服务被瞬时的高并发流量击垮，保证服务的高可靠性。
+
+#### 直连
+
+==默认的流控模式，当接口达到限流条件时，直接开启限流功能。==
+
+![image-20240509222306919](https://gitee.com/cnuto/images/raw/master/image/image-20240509222306919.png)
+
+![image-20240509222242303](https://gitee.com/cnuto/images/raw/master/image/image-20240509222242303.png)
+
+#### 关联
+
+当关联的资源达到阈值时，就限流自己；当与A关联的资源B达到阈值后，就限流自己
+
+![image-20240509222159910](https://gitee.com/cnuto/images/raw/master/image/image-20240509222159910.png)
+
+Jmiter不停调用/testB，触发Block
+
+#### 链路
+
+来自不同链路的请求对同一个目标访问时，实施针对性的不同限流措施，比如C请求来访问就限流，D请求来访问就是OK
+
+- 创建service
+
+```java
+@Service
+public class FlowLimitService {
+    
+    @SentinelResource(value = "common")
+    public void common() {
+        System.out.println("--------FlowLimitService come in");
+    }
+}
+```
+
+- 创建controller
+
+```java
+    @GetMapping("/testC")
+    public String testC() {
+        flowLimitService.common();
+        return "testC";
+    }
+
+    @GetMapping("/testD")
+    public String testD() {
+        flowLimitService.common();
+        return "testD";
+    }
+```
+
+- 配置
+
+![image-20240509232105702](https://gitee.com/cnuto/images/raw/master/image/image-20240509232105702.png)
+
+- 当并发调用C时，触发限流；当并发调用D时，不触发限流。
+

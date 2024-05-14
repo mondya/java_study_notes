@@ -1532,3 +1532,88 @@ Sentinel熔断降级会在调用链路中某个资源出现不稳定状态时（
 #### 异常数
 
 异常数 (`ERROR_COUNT`)：当单位统计时长内的异常数目超过阈值之后会自动进行熔断。经过熔断时长后熔断器会进入探测恢复状态（HALF-OPEN 状态），若接下来的一个请求成功完成（没有错误）则结束熔断，否则会再次被熔断。
+
+### @SentinelResource注解
+
+#### 代码示例
+
+```java
+    @GetMapping("/testF/{id}")
+    // value：资源名称， blockHandler：触发熔断或者流控进入 fallback：发生异常进入；两者可以共存
+    @SentinelResource(value = "testF", blockHandler = "blockHandler", fallback = "fallback")
+    public String testF(@PathVariable(name = "id") Long id) {
+        if (id == 0) {
+            throw new RuntimeException("不支持的数据");
+        }
+        return "testF";
+    }
+    
+    
+    public String blockHandler(Long id, BlockException e) {
+        return "blockHandler" + "id:" + id;
+    }
+
+    public String fallback(Long id, Throwable e) {
+        return "fallback" + "id:" + id + "\t" +  "error:" + e.getMessage();
+    }
+```
+
+### 热点规则
+
+// todo
+
+### 规则持久化
+
+持久化使用nacos
+
+#### 引入Jar包
+
+```xml
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-datasource-nacos</artifactId>
+        </dependency>
+```
+
+#### 配置yml文件
+
+```yaml
+    sentinel:
+      transport:
+        dashboard: localhost:8080 # sentinel控制台地址
+        port: 8719 # 默认8719端口，加入被占用会自动从8719开始依次加1，直至找到未被占用的端口
+      web-context-unify: false # controller层的方法对service层调用不认为是同一个根链路
+      datasource:
+        ds1:
+          nacos:
+            server-addr: localhost:8848
+            data-id: ${spring.application.name}-flow
+            group-id: DEFAULT_GROUP
+            data-type: json
+            rule-type: flow # com.alibaba.cloud.sentinel.datasource.RuleType 枚举类 flow:流控 degrade:熔断 paramFlow:热点规则 system:系统保护 authority:访问控制
+        ds2:
+          nacos:
+            server-addr: localhost:8848
+            data-id: ${spring.application.name}-degrade
+            group-id: DEFAULT_GROUP
+            data-type: json
+            rule-type: degrade # com.alibaba.cloud.sentinel.datasource.RuleType 枚举类 flow:流控 degrade:熔断 paramFlow:热点规则 system:系统保护 authority:访问控制
+```
+
+#### nacos创建配置
+
+>  flow
+
+![image-20240514223739335](https://gitee.com/cnuto/images/raw/master/image/image-20240514223739335.png)
+
+- resource：资源名称
+- limitApp：来源应用
+- grade：阈值类型，0表示线程数，1表示QPS
+- count：单机阈值
+- strategy：流控模式，0表示直接，1表示关联，2表示链路
+- controlBehavior：流控效果，0表示快速失败，1表示WarmUp，2表示排队等待
+- clusterMode：是否集群
+
+> degrade
+
+![image-20240514223759244](https://gitee.com/cnuto/images/raw/master/image/image-20240514223759244.png)

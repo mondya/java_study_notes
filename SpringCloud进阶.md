@@ -1617,3 +1617,87 @@ Sentinel熔断降级会在调用链路中某个资源出现不稳定状态时（
 > degrade
 
 ![image-20240514223759244](https://gitee.com/cnuto/images/raw/master/image/image-20240514223759244.png)
+
+### Sentinel整合SpringCloudGateway
+
+#### 引入jar
+
+```xml
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-spring-cloud-gateway-adapter</artifactId>
+            <version>1.8.6</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-transport-simple-http</artifactId>
+            <version>1.8.6</version>
+        </dependency>
+        <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
+            <version>1.3.2</version>
+        </dependency>
+```
+
+#### 配置类
+
+```java
+@Configuration
+public class GatewayConfiguration {
+
+    private final List<ViewResolver> viewResolvers;
+    private final ServerCodecConfigurer serverCodecConfigurer;
+
+    public GatewayConfiguration(ObjectProvider<List<ViewResolver>> viewResolversProvider,
+                                ServerCodecConfigurer serverCodecConfigurer) {
+        this.viewResolvers = viewResolversProvider.getIfAvailable(Collections::emptyList);
+        this.serverCodecConfigurer = serverCodecConfigurer;
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    public SentinelGatewayBlockExceptionHandler sentinelGatewayBlockExceptionHandler() {
+        // Register the block exception handler for Spring Cloud Gateway.
+        return new SentinelGatewayBlockExceptionHandler(viewResolvers, serverCodecConfigurer);
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    public GlobalFilter sentinelGatewayFilter() {
+        return new SentinelGatewayFilter();
+    }
+    
+    @PostConstruct
+    public void init() {
+        initBlockHandler();
+    }
+
+    // 处理+自定义返回的例外信息内容，类似于调用触发流控规则保护
+    private void initBlockHandler() {
+        HashSet<GatewayFlowRule> gatewayFlowRules = new HashSet<>();
+        // route_id:pay_routh2,对应的path=/pay/gateway/info/**
+        gatewayFlowRules.add(new GatewayFlowRule("pay_routh2").setCount(2).setIntervalSec(1));
+        GatewayRuleManager.loadRules(gatewayFlowRules);
+        
+        BlockRequestHandler handler = new BlockRequestHandler(){
+
+            @Override
+            public Mono<ServerResponse> handleRequest(ServerWebExchange serverWebExchange, Throwable throwable) {
+                HashMap<String, String> map = new HashMap<>();
+                map.put("errorCode", HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase());
+                map.put("errorMessage", "请求过于频繁，请稍后再试！");
+                return ServerResponse.status(HttpStatus.TOO_MANY_REQUESTS).contentType(MediaType.APPLICATION_JSON).body(BodyInserters.fromValue(map));
+            }
+        };
+
+        GatewayCallbackManager.setBlockHandler(handler);
+    }
+}
+```
+
+#### 测试
+
+调用http://localhost:9527/pay/gateway/info?name=xhh&xhh=1，1秒内调用2次
+
+![image-20240516231623937](https://gitee.com/cnuto/images/raw/master/image/image-20240516231623937.png)

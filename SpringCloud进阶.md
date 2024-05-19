@@ -1701,3 +1701,382 @@ public class GatewayConfiguration {
 调用http://localhost:9527/pay/gateway/info?name=xhh&xhh=1，1秒内调用2次
 
 ![image-20240516231623937](https://gitee.com/cnuto/images/raw/master/image/image-20240516231623937.png)
+
+## Seata分布式事务
+
+![image-20240518154811342](https://gitee.com/cnuto/images/raw/master/image/image-20240518154811342.png)
+
+- TC (Transaction Coordinator) - 事务协调者
+
+维护全局和分支事务的状态，驱动全局事务提交或回滚。
+
+- TM (Transaction Manager) - 事务管理器
+
+定义全局事务的范围：开始全局事务、提交或回滚全局事务。（标注全局@GlobalTransactional启动入口动作的微服务模块，比如订单模块，它是事务的发起者，负责定义全局事务的范围，并根据TC维护的全局事务和分支事务状态，做出开始事务，提交事务，回滚事务的决定）
+
+- RM (Resource Manager) - 资源管理器
+
+管理分支事务处理的资源，与TC交谈以注册分支事务和报告分支事务的状态，并驱动分支事务提交或回滚。
+
+### 执行流程
+
+- TM向TC申请开启一个全局事务，全局事务创建成功并生成一个全局唯一的XID。
+- XID在微服务调用链路的上下文中传播
+- RM向TC注册分支事务，将其纳入XID对应全局事务的管理
+- TM向TC发起针对XID的全局提交或者回滚协议
+- TC调度XID下管辖的全部分支事务完成提交或者回滚请求
+
+### 安装
+
+#### 建立数据库
+
+sql脚本地址：https://github.com/apache/incubator-seata/tree/2.x/script
+
+建立数据库：seata
+
+```sql
+--
+-- Licensed to the Apache Software Foundation (ASF) under one or more
+-- contributor license agreements.  See the NOTICE file distributed with
+-- this work for additional information regarding copyright ownership.
+-- The ASF licenses this file to You under the Apache License, Version 2.0
+-- (the "License"); you may not use this file except in compliance with
+-- the License.  You may obtain a copy of the License at
+--
+--     http://www.apache.org/licenses/LICENSE-2.0
+--
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
+--
+
+-- -------------------------------- The script used when storeMode is 'db' --------------------------------
+-- the table to store GlobalSession data
+CREATE TABLE IF NOT EXISTS `global_table`
+(
+    `xid`                       VARCHAR(128) NOT NULL,
+    `transaction_id`            BIGINT,
+    `status`                    TINYINT      NOT NULL,
+    `application_id`            VARCHAR(32),
+    `transaction_service_group` VARCHAR(32),
+    `transaction_name`          VARCHAR(128),
+    `timeout`                   INT,
+    `begin_time`                BIGINT,
+    `application_data`          VARCHAR(2000),
+    `gmt_create`                DATETIME,
+    `gmt_modified`              DATETIME,
+    PRIMARY KEY (`xid`),
+    KEY `idx_status_gmt_modified` (`status` , `gmt_modified`),
+    KEY `idx_transaction_id` (`transaction_id`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4;
+
+-- the table to store BranchSession data
+CREATE TABLE IF NOT EXISTS `branch_table`
+(
+    `branch_id`         BIGINT       NOT NULL,
+    `xid`               VARCHAR(128) NOT NULL,
+    `transaction_id`    BIGINT,
+    `resource_group_id` VARCHAR(32),
+    `resource_id`       VARCHAR(256),
+    `branch_type`       VARCHAR(8),
+    `status`            TINYINT,
+    `client_id`         VARCHAR(64),
+    `application_data`  VARCHAR(2000),
+    `gmt_create`        DATETIME(6),
+    `gmt_modified`      DATETIME(6),
+    PRIMARY KEY (`branch_id`),
+    KEY `idx_xid` (`xid`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4;
+
+-- the table to store lock data
+CREATE TABLE IF NOT EXISTS `lock_table`
+(
+    `row_key`        VARCHAR(128) NOT NULL,
+    `xid`            VARCHAR(128),
+    `transaction_id` BIGINT,
+    `branch_id`      BIGINT       NOT NULL,
+    `resource_id`    VARCHAR(256),
+    `table_name`     VARCHAR(32),
+    `pk`             VARCHAR(36),
+    `status`         TINYINT      NOT NULL DEFAULT '0' COMMENT '0:locked ,1:rollbacking',
+    `gmt_create`     DATETIME,
+    `gmt_modified`   DATETIME,
+    PRIMARY KEY (`row_key`),
+    KEY `idx_status` (`status`),
+    KEY `idx_branch_id` (`branch_id`),
+    KEY `idx_xid` (`xid`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `distributed_lock`
+(
+    `lock_key`       CHAR(20) NOT NULL,
+    `lock_value`     VARCHAR(20) NOT NULL,
+    `expire`         BIGINT,
+    primary key (`lock_key`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4;
+
+INSERT INTO `distributed_lock` (lock_key, lock_value, expire) VALUES ('AsyncCommitting', ' ', 0);
+INSERT INTO `distributed_lock` (lock_key, lock_value, expire) VALUES ('RetryCommitting', ' ', 0);
+INSERT INTO `distributed_lock` (lock_key, lock_value, expire) VALUES ('RetryRollbacking', ' ', 0);
+INSERT INTO `distributed_lock` (lock_key, lock_value, expire) VALUES ('TxTimeoutCheck', ' ', 0);
+```
+
+#### 修改yml文件
+
+![image-20240518162256285](https://gitee.com/cnuto/images/raw/master/image/image-20240518162256285.png)
+
+```yaml
+#  Copyright 1999-2019 Seata.io Group.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+server:
+  port: 7091
+
+spring:
+  application:
+    name: seata-server
+
+logging:
+  config: classpath:logback-spring.xml
+  file:
+    path: ${log.home:${user.home}/logs/seata}
+  extend:
+    logstash-appender:
+      destination: 127.0.0.1:4560
+    kafka-appender:
+      bootstrap-servers: 127.0.0.1:9092
+      topic: logback_to_logstash
+
+console:
+  user:
+    username: seata
+    password: seata
+# seata是需要我们手动配置编写config,registry,store    
+seata:
+  config:
+    type: nacos
+    nacos:
+      server-addr: localhost:8848
+      namespace:
+      group: SEATA_GROUP #在nacos里面新建，否则使用默认DEFAULT_GROUP
+      username: nacos
+      password: nacos
+  registry:
+    type: nacos
+    nacos:
+      application: seata-server
+      server-addr: localhost:8848
+      group: SEATA_GROUP
+      namespace:
+      cluster: default
+      username: nacos
+      password: nacos
+  store:
+    mode: db
+    db:
+      datasource: druid
+      db-type: mysql
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      url: jdbc:mysql://localhost:3306/seata?characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&rewriteBatchedStatements=true&allowPublicKeyRetrieval=true
+      username: root
+      password: xhh1999.02.10
+      min-conn: 10
+      max-conn: 100
+      global-table: global_table
+      brach-table: branch_table
+      lock-table: lock_table
+      distributed-lock-table: distributed_lock
+      query-limit: 1000
+      max-wait: 5000   
+  security:
+    secretKey: SeataSecretKey0c382ef121d778043159209298fd40bf3850a017
+    tokenValidityInMilliseconds: 1800000
+    ignore:
+      urls: /,/**/*.css,/**/*.js,/**/*.html,/**/*.map,/**/*.svg,/**/*.png,/**/*.jpeg,/**/*.ico,/api/v1/auth/login,/metadata/v1/**
+
+```
+
+#### 验证
+
+启动nacos，bin目录下
+
+```bash
+startup.cmd standalone
+```
+
+启动seata, bin目录下
+
+```bash
+seata-server.bat
+```
+
+![image-20240518164336032](https://gitee.com/cnuto/images/raw/master/image/image-20240518164336032.png)
+
+![image-20240518164350583](https://gitee.com/cnuto/images/raw/master/image/image-20240518164350583.png)
+
+### 准备工作
+
+创建模块order，account，storage
+
+注意点：
+
+```xml
+        <!--mybatis版本冲突，需要指定版本-->
+        <dependency>
+            <groupId>org.mybatis.spring.boot</groupId>
+            <artifactId>mybatis-spring-boot-starter</artifactId>
+            <version>3.0.3</version>
+        </dependency>
+```
+
+以account为例，yml文件配置
+
+```yaml
+server:
+  port: 9001
+spring:
+  application:
+    name: seata-account
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/seata_account?characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&rewriteBatchedStatements=true&allowPublicKeyRetrieval=true
+    username: root
+    password: xhh1999.02.10
+    type: com.alibaba.druid.pool.DruidDataSource
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        service: seata-account
+        group: DEFAULT_GROUP
+    openfeign:
+      client:
+        config:
+          default:
+            connect-timeout: 60000
+      httpclient:
+        hc5:
+          enabled: true
+---
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.xhh.entities
+  configuration:
+    map-underscore-to-camel-case: true
+---
+seata:
+  registry:
+    type: nacos
+    nacos:
+      server-addr: localhost:8848
+      group: SEATA_GROUP
+      application: seata-server
+      namespace: ""
+  tx-service-group: default-tx-group #事务组，由它获得TC服务的集群名称
+  service:
+    vgroup-mapping:
+      default-tx-group: default # 默认事务组映射到TC集群名称
+  data-source-proxy-mode: AT
+  
+logging:
+  level:
+    io:
+      seata: info
+```
+
+### 验证
+
+流程：order创建订单，通过feign调用account扣减金额，调用storage扣减库存
+
+#### order业务代码
+
+```java
+    @GlobalTransactional(name = "")
+    public ResultVO create(Order order) {
+        
+        // xid全局事务id
+        String xid = RootContext.getXID();
+        log.info("开始新建订单, xid:{}", xid);
+        
+        order.setStatus(0);
+        int result = orderMapper.insert(order);
+        
+        if (result > 0) {
+            // 扣减库存
+            log.info("开始扣减库存");
+            seataStorageFeign.decrease(order.getProductId(), order.getCount());
+            log.info("扣减库存成功，开始扣减账户余额");
+            // 扣减账户余额
+            seataAccountFeign.decrease(order.getUserId(), order.getMoney());
+            log.info("扣减账户余额成功");
+        }
+        Order o = orderMapper.fetchById(order.getUserId(), order.getProductId());
+        if (Objects.nonNull(o)) {
+            o.setStatus(1);
+            orderMapper.update(o);
+            log.info("更新order的状态成功");
+        }
+        return ResultVO.success();
+    }
+```
+
+#### account代码制造异常
+
+==设置超时时间，时间太短seata控制台看不到信息==
+
+```java
+    public ResultVO decrease(Long userId, BigDecimal money) throws Exception {
+        Account account = accountMapper.selectByUserId(userId);
+        if (account.getUserd() == null) {
+            account.setUserd(money);
+        } else {
+            account.setUserd(account.getUserd().add(money));
+        }
+        if (userId == 1L) {
+            try {
+                Thread.sleep(65000);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        account.setResidue(account.getTotal().subtract(money));
+        accountMapper.update(account);
+        
+        return ResultVO.success();
+    }
+```
+
+#### 接口测试
+
+localhost:9002/order/create
+
+![image-20240519142706131](https://gitee.com/cnuto/images/raw/master/image/image-20240519142706131.png)
+
+undo_log
+
+![image-20240519142811312](https://gitee.com/cnuto/images/raw/master/image/image-20240519142811312.png)
+
+==65秒后触发回滚==
+
+seata控制台
+
+![image-20240519142914170](https://gitee.com/cnuto/images/raw/master/image/image-20240519142914170.png)
+
+![image-20240519142928202](https://gitee.com/cnuto/images/raw/master/image/image-20240519142928202.png)

@@ -913,6 +913,7 @@ import java.io.IOException;
 public class DemoOutputStream {
     public static void main(String[] args) throws IOException {
         //1.创建一个FileOutputStream对象，构造方法中传递写入数据的目的地
+ 		// 参数是字符串表示的路径或者是File对象都是可以的；如果文件不能存在会创建一个新文件，但是要保证父级路径是存在的；如果文件已经存在，则会清空文件
         FileOutputStream fos = new FileOutputStream("d:/b.txt");
         //在文件中显示100
         fos.write(49);
@@ -957,6 +958,7 @@ java.io.InputStream字节输入流
 	int read(byte[] b) 从输入流中读取一定数量的字节，并将其存储到缓冲区数组b中
 	void close();
 */
+// 如果文件不存在，就直接报错；一次读取一个字节，读出来的数据在ASCII上对应的数字；文件末尾read方法返回-1
         FileInputStream fis = new FileInputStream("d:/b.txt");
         int length = 0;
         while((length=fis.read())!=(-1)){
@@ -1013,6 +1015,14 @@ public class CopyFile {
     }
 }
 ```
+
+## 字符集
+
+字节流直接读取中文会发生乱码
+
+### ASCII编码
+
+![image-20240606232501514](https://gitee.com/cnuto/images/raw/master/image/image-20240606232501514.png)
 
 ## 字符输出流
 

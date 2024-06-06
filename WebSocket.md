@@ -34,7 +34,7 @@ send()：通过websocket对象调用该方法发送数据到服务器端
 
 ### 代码示例
 
-![image-20240319204314827](https://gitee.com/cnuto/images/raw/master/image/image-20240319204314827.png)
+![image-20240319204314827](C:\Users\19242\AppData\Roaming\Typora\typora-user-images\image-20240319204314827.png)
 
 ## 服务端
 

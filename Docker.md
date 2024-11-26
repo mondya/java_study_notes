@@ -783,7 +783,7 @@ DockerFile是用来构建Docker镜像的文本文件，是由一条条构建镜�
 
 #### RUN
 
-容器构建时需要运行的命令，它有两种格式：`shell格式`或者`exec格式`，RUN在docker build时运行，等同于在终端执行命令
+容器==构建时==需要运行的命令，它有两种格式：`shell格式`或者`exec格式`，RUN在docker build时运行，等同于在终端执行命令
 
 #### EXPOSE
 
@@ -844,6 +844,55 @@ CMD ["catalina.sh", "run"]
 CMD ["/bin/bash", "run"]
 # catalina.sh被覆盖了
 ```
+
+##### 语法
+
+> exec形式
+
+一般来说，第一个元素是要执行的命令，后面的元素都是该命令的参数。每个参数之间用逗号分隔开来。
+
+> shell形式
+
+一般来说，第一个元素是执行脚本，例如==./entrypoint.sh==中间元素为shell的参数，最后通常是具体要执行的命令字符串。可以只有第一个元素存在。
+
+**例子一：启动一个简单的 Python 脚本**
+
+```dockerfile
+FROM python:3.8
+COPY my_script.py /
+CMD ["python", "my_script.py"]
+```
+
+假设`my_script.py`是一个简单的 Python 脚本，当使用这个 Dockerfile 构建的镜像启动容器时，容器会自动运行 Python 解释器并执行`my_script.py`。
+
+**例子二：启动一个 Node.js 应用**
+
+```dockerfile
+FROM node:14
+COPY my_app.js /
+CMD ["node", "my_app.js"]
+```
+
+这里容器启动时会运行 Node.js 并执行`my_app.js`文件。
+
+**例子三：使用 shell 形式执行命令并带有管道操作**
+
+```dockerfile
+FROM ubuntu:latest
+CMD ["/bin/sh","-c","ls -l | grep myfile"]
+```
+
+这个例子中，容器启动时会执行`ls -l`命令列出当前目录下的文件列表，然后通过管道将结果传递给`grep myfile`，查找包含`myfile`的行。
+
+**例子四：启动一个带有参数的 Java 应用**
+
+```dockerfile
+FROM openjdk:11
+COPY my_app.jar /app.jar
+CMD ["java","-jar","/app.jar","--server.port=8080"]
+```
+
+这里容器启动时会运行 Java 并执行`my_app.jar`，同时传递参数`--server.port=8080`来指定应用的端口。
 
 #### ENTRYPOINT
 

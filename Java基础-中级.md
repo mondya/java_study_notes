@@ -1024,6 +1024,12 @@ public class CopyFile {
 
 ![image-20240606232501514](https://gitee.com/cnuto/images/raw/master/image/image-20240606232501514.png)
 
+### 字符集和编码方式
+
+常见的字符集有ASCII，Unicode，GBK
+
+常见的字符集编码有：UTF-8,UTF-16
+
 ## 字符输出流
 
 ```java

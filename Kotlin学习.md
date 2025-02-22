@@ -69,3 +69,47 @@ fun 函数名称(参数a :参数类型, 参数b :参数类型) : 返回值类型
 }
 ```
 
+```kotlin
+
+fun main() {
+    printCustom(1, 2)
+    println(sumDefaultValue(null, 2))
+    println(commonParam)
+    println(commonParam2)
+}
+
+fun printCustom(a: Int, b: Int): Unit {
+    println(a)
+    println(b)
+}
+
+fun sumDefaultValue(a: Int?, b: Int = 2): Int {
+    return (a ?: 0) + b
+}
+
+// 简单写法
+fun sumSimple(a: Int, b: Int) = a + b
+```
+
+### Lambda表达式
+
+```kotlin
+fun main() {
+    val x: (String) -> Unit = {
+        println(it)
+    }
+    
+    x("hello")
+    
+    
+    test(1) {
+        println(it)
+        0
+    }
+}
+// 接收一个入参为String, 出参为Int的函数
+fun test(a : Int, func: (String) -> Int) {
+    println(func("hello world"))
+}
+```
+

@@ -58,6 +58,33 @@ fun main() {
 }
 ```
 
+### 基本数据类型
+
+```kotlin
+fun main() {
+    var a: Int = 10001
+    var b: Int = 10001
+    
+    // true，编译成Java的int类型
+    println(a === b)
+    
+    
+    var a1: Int? = 10001
+    var b1: Int? = 10001
+    // false， 编译成Java的Integer，比较的是内存地址
+    println(a1 === b1)
+    
+    
+    var a2: Int? = 111
+    var b2: Int? = 111
+    
+    // true, 少于127，比较的是数值
+    println(a2 === b2)
+}
+```
+
+
+
 ## 中级
 
 ### 函数创建
@@ -91,11 +118,12 @@ fun sumDefaultValue(a: Int?, b: Int = 2): Int {
 fun sumSimple(a: Int, b: Int) = a + b
 ```
 
-### Lambda表达式
+### Lambda表达式和高阶函数
 
 ```kotlin
 fun main() {
-    val x: (String) -> Unit = {
+    // 使用Lambda函数定义一个函数
+    val func: (String) -> Unit = {
         println(it)
     }
     
@@ -111,5 +139,163 @@ fun main() {
 fun test(a : Int, func: (String) -> Int) {
     println(func("hello world"))
 }
+```
+
+### 内联函数
+
+使用高阶函数可能会影响运行时的性能：每个函数都是一个对象，而且函数可以访问一些局部变量，但是这可能会在内存分配（用于函数对象和类）和虚拟调用时造成额外开销。
+
+使用==inline==关键字会影响函数本身和传递给他的lambads，它能够让方法的调用在编译时，直接替换为方法的执行代码。
+
+```kotlin
+fun main() {
+    test("hello")
+    // 内联函数，相当于直接调用 println("hello") println("hello $str")
+    
+    testHighMethod { println("输出 $it") }
+    // 相当于
+    println("这是一个内联函数")
+    val it = "helloWorld"
+    println("输出 :${it}")
+}
+
+inline fun test(str: String) {
+    println(str)
+    println("hello $str")
+}
+
+inline fun testHighMethod(func: (String) -> Unit) {
+    println("这是一个内联函数")
+    func("helloWorld")
+}
+```
+
+![image-20250223144142865](https://gitee.com/cnuto/images/raw/master/image/image-20250223144142865.png)
+
+### 类
+
+```kotlin
+// 构造函数
+class Student public constructor(name: String, age: Int){
+}
+
+// 添加var或者val关键字使name和age变成属性
+class Student public constructor(var name: String, var age: Int){
+}
+
+// 属性定义在内部，必须初始化值
+class Student {
+
+    var name: String = ""
+    var age: Int = 0
+}
+
+class Student constructor(var name: String, var age: Int) {
+    
+    // 次要构造函数，代码块可不写；必须直接或者间接调用主构造函数
+    constructor(name: String): this(name, 0) {
+        println("次要构造函数")
+    }
+    
+    // 重写toString()
+    override fun toString(): String {
+        return "Student(name='$name', age=$age)"
+    }
+    
+    init {
+        println("类的初始化代码块")
+    }
+}
+```
+
+### 运算符重载
+
+Kotlin支持为程序中已知的运算符提供自定义实现，这些运算符具有固定的符号表示（如+或者-或者*）以及对应的优先级。
+
+```kotlin
+class Person(val name: String, val age: Int) {
+    
+    operator fun plus(person: Person): Int {
+        return this.age + person.age;
+    }
+}
+
+    val p1 = Person("hello", 1)
+    val p2 = Person("hello", 2)
+    // 结果为3
+    println(p1 + p2)
+```
+
+### 中缀函数
+
+使用==infix==关键字标记的函数称为中缀函数：
+
+- 必须是成员函数
+- 只能有一个参数
+- 参数不能有默认值
+
+```kotlin
+class Person(val name: String, val age: Int) {
+    
+    infix fun test(str: String): String {
+        return name + str
+    }
+}
+
+
+fun main() {
+    val person = Person("hello", 18)
+    // helloworld
+    println(person test "world")
+    // 也可以当作普通函数调用
+    println(person.test("world"))
+}
+```
+
+中缀函数的优先级低于算术运算符、类型转换和`rangeTo`运算符
+
+- `1 shl 2+3`相当于`1 shl (2+3)`
+- `0 until n * 2`相当于`0 until (n * 2)`
+- `xs union ys as Set<*>`相当于`xs union (ys as Set<*>)`
+
+优先级高于布尔运算符`&&`和`||`、`is -`和`in -check`以及其他一些运算符的优先级
+
+- `a && b xor c`相当于`a && (b xor c)`
+- `a xor b in c`相当于`(a xor b) in c`
+
+### 空值和空类型
+
+```kotlin
+fun main() {
+    // kotlin默认变量不为空，下面代码编译不通过
+    // val str: String = null
+    
+    // 可为空
+    var student: Student? = null
+    val name: String = student?.name ?: "default name"
+    
+    println(name)
+}
+```
+
+### 解构声明
+
+```kotlin
+class Student constructor(var name: String, var age: Int) {
+   
+    // 解构函数
+    operator fun component1() = name
+    operator fun component2() = age
+}    
+
+val stu = Student("张三", 10)
+val (a, b) = stu
+    
+println("name$a, age$b")
+
+val func: (Student) -> Unit = {(a, b) ->
+        println(a)
+}    
+func(stu)
 ```
 

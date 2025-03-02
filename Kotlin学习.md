@@ -336,7 +336,6 @@ class Daughter(name: String, age: Int) : Parent(name, age) {
 ```
 
 
-
 ### 扩展函数
 
 ```kotlin

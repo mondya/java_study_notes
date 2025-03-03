@@ -385,6 +385,57 @@ fun printClass(student: Student) { // 但是由于这里指定的类型是Studen
 }
 ```
 
+### 官方扩展函数
+
+```kotlin
+    var a = Any()
+		
+		a.apply { 
+        println(this)
+    }
+
+    var st: Int = a.let { 
+        println(it)
+        1
+    }
+```
+
+
+
 ## 高级
 
 ### 泛型
+
+```kotlin
+fun main() {
+    val score = Score<Int>("高等数学", "123", 60)
+    val value: Int = score.value
+    
+    val str = genericityMethod("hello") // 调用函数自动明确类型
+    println(str)
+}
+
+class Score<T>(var name: String, var id: String, var value: T)
+
+abstract class A<T>() {
+    abstract fun test(): T;
+}
+
+
+// 子类直接声明为String类型
+class B : A<String>() {
+    override fun test(): String {
+        return "hello"
+    }
+}
+
+abstract class C<V>: A<V>() {
+}
+
+
+// 泛型函数
+fun <T> genericityMethod(t: T): T {
+    return t
+}
+```
+

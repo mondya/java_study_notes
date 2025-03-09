@@ -127,7 +127,7 @@ fun main() {
         println(it)
     }
     
-    x("hello")
+    func("hello")
     
     
     test(1) {
@@ -441,5 +441,123 @@ fun <T> genericityMethod(t: T): T {
 
 ### 协变和逆变
 
-- `out`关键字用于标记一个类型参数作为协变，可以实现子类到父类的转换
-- `in`关键字用于标记一个类型参数作为逆变，可以实现父类到子类的转换
+- `out`关键字用于标记一个类型参数作为协变，可以实现子类到父类的转换；使用out修饰的泛型不能用作函数的参数，对应类型的成员变量setter也会被限制，只能当作一个生产者使用。
+- `in`关键字用于标记一个类型参数作为逆变，可以实现父类到子类的转换；使用In修饰的泛型不能用作函数的返回值，对应类型的成员变量getter也会被限制，只能当作一个消费者使用。
+
+```kotlin
+class Test<T>(var data: T)
+
+
+fun main() {
+    val test1 = Test<Int>(10)
+    // 类似于Java的 ? extends
+    // Test<Integer> test1 = new Test<Integer>(1);
+    // Test<? extends Number> test2 = test1;
+    val test2: Test<out Number> = test1
+    
+    // 这部分编译报错，不能设置具体的值；这里test2继承了Number， data泛型不能赋值
+    // test2.data = 12
+    println(test2.data)
+    
+    // 类似于Java的 ? super
+    // Test<Object> test3 = new Test<Object>(10)
+    // Test<? super Number> test4 = test3;  Number的父类为Object
+    val test3: Test<Any> = Test(10)
+    val test4: Test<in Number> = test3
+    
+    test4.data = 11
+    println(test4.data)
+    
+    // 原生数组
+    intArrayOf()
+    byteArrayOf()
+    doubleArrayOf()
+}
+```
+
+### 数组和原生类型数组
+
+创建方式
+
+- 官方预设工具函数：==arrayOf()==, ==arrayOfNulls()==以及==emptyArray()==
+- 使用类Array构造函数创建
+
+```kotlin
+fun main() {
+    val array: Array<Int> = arrayOf(1, 2, 3)
+    // 打印1，2，3
+    for (element in array) {
+        println(element)
+    }
+    
+    // 数组拷贝
+    val copyOf = array.copyOf()
+    
+    val nullCopyOf = array.copyOf(10)
+    nullCopyOf.forEachIndexed { index : Int, v: Int? -> 
+        println("$index$v")
+    }
+
+
+    // 坐标0, 值1
+    // 坐标1, 值2
+    // 坐标2, 值3
+    for ((index, element) in array.withIndex()) {
+        println("坐标$index, 值$element")
+    }
+
+
+    // i get 0 and value1
+    // i get 1 and value2
+    // i get 2 and value3
+    array.forEachIndexed { index: Int, i: Int ->
+        println("i get $index and value$i")
+    }
+    
+    // 数组转字符串，默认逗号隔开1, 2, 3
+    // (1-2-3)
+    println(array.joinToString("-", "(" , ")"))
+    
+    
+    val arrayByConstructor: Array<String> = Array(5, ) {
+        "默认元素"
+    }
+
+    for (s in arrayByConstructor) {
+        println(s)
+    }
+        
+}
+```
+
+### 可变长参数
+
+使用关键字`vararg`，同类型参数可以任意数量
+
+```kotlin
+fun main() {
+    val array: Array<String> = arrayOf("a","b","c")
+    test(*array)
+
+    
+    val arrayInt: Array<Int> = arrayOf(1,2,3)
+    // 编译报错
+    // testInt(*arrayInt)
+
+    val intArrayOf = intArrayOf(1, 1)
+    testInt(*intArrayOf)
+
+}
+
+fun test(vararg str: String) {
+    val array: Array<out String> = str
+    println(array.joinToString())
+}
+
+fun testInt(vararg i: Int) {
+    println(i.joinToString())
+}
+```
+
+
+

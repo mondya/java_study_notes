@@ -559,5 +559,279 @@ fun testInt(vararg i: Int) {
 }
 ```
 
+### 普通集合
+
+```kotlin
+package org.example
+
+fun main() {
+    val emptyList: MutableList<String> = mutableListOf()
+    emptyList.add("hello")
+    val list: MutableList<Int> = mutableListOf(1, 2, 3)
+
+    val iterator: Iterator<String> = emptyList.iterator()
+    while (iterator.hasNext()) {
+        println(iterator.next())
+    }
+
+    // iterator是一次性的，上面使用之后就不能在使用了，下面报错
+    // println(iterator.next())
+
+    // 压缩操作，Pair   0 -> hello, 1 报错indexOutBound
+    val zip = list.zip(emptyList)
+    println(zip.get(0))
+    
+    /// 通过associate转换map映射
+    emptyList.associate { s ->
+        s.length to s
+    }
+    
+    // 可以直接使用map.putAll方法把zip放入
+    val zipMap = mutableMapOf<Int, String>()
+    zipMap.putAll(zip)
+
+    val emptySet: MutableSet<String> = mutableSetOf()
+    emptySet.add("set")
+    emptySet.add("set")
+    
+    
+    val emptyMap = mutableMapOf<Any, Any>()
+    emptyMap[1] = "world"
+    emptyMap["hello"] = "world"
+    
+    val map: MutableMap<Int, String> = mutableMapOf(1 to "hello", 2 to "world")
+    val value: String? = map.getOrDefault(3, "default value")
+    // 和getOrDefault一样，只是getOrPut使用了函数式返回默认值
+    map.getOrPut(5) { "default 5" }
+    val newMap = map + mutableMapOf(4 to "four")
+    if (3 !in map.keys) {
+        println("not in 3")
+    }
+    for ((k, v) in map) {
+        println("key$k value$v")
+    }
+    println(value)
+    
+    // 嵌套集合
+    val flattenList = mutableListOf(mutableListOf("hello"), mutableListOf("world"))
+    var flatten: List<String> = flattenList.flatten()
+
+}
+```
+
+### 序列（Sequence）
+
+序列是一个延迟获取数据的集合，只有在元素需要时才会生产元素并提供给外部，包括所有对元素的操作，并不是一次性全部处理。使用序列能够在处理大量数据时获得显著的提升。
+
+```kotlin
+package org.example
+
+fun main() {
+    
+    // 不调用println语句不会打印
+    val sequence: Sequence<Int> = generateSequence{
+        println("生成sequence")
+        10
+    }
+    
+    
+    val list = listOf("aa", "bbb", "ccc", "dd", "eee", "ff", "ggg", "hh")
+   
+    /* 不使用sequence前
+    过滤操作aa
+    过滤操作bbb
+    过滤操作ccc
+    过滤操作dd
+    过滤操作eee
+    过滤操作ff
+    过滤操作ggg
+    过滤操作hh
+    进行大写转换
+    进行大写转换
+    进行大写转换
+    进行大写转换
+     */
+
+    /** 使用sequence后
+     * 过滤操作aa
+     * 过滤操作bbb
+     * 进行大写转换
+     * 过滤操作ccc
+     * 进行大写转换
+     * BBB, CCC
+     */
+    
+    // take(2)获取到2个后就停止
+    val result = list.asSequence().filter { 
+        println("过滤操作$it")
+        it.length > 2
+    }.map { 
+        println("进行大写转换")
+        it.uppercase()
+    }.take(2)
+
+    println(result.joinToString())
+}
+```
+
+### 特殊类型
+
+#### 数据类(data class)
+
+在class关键字前面添加关键字`data`
+
+数据类声明后，编译器会根据主构造函数中声明的所有属性自动为其生成以下函数:
+
+- .equals() / .hashCode()
+- .toString()
+- .componentN() 按声明顺序自动生成结构函数
+- .copy() 用于对对象的拷贝
+
+数据类必须满足以下需求：
+
+- 主构造函数至少有一个参数
+- 主构造函数的参数必须标记为var或者val
+- 数据类不能为抽象的，开放的，密封的或内部的
+
+规则：
+
+- 如果数据类主体中 .equals() .hashCode()或者.toString()等函数存在显示实现，或者父类中有final实现，则不会自动生成这些函数，并使用现有的实现。
+
+```kotlin
+data class User(var id: Long?, var name: String) {
+    override fun toString(): String {
+        return "我是自定义"
+    }
+}
+
+fun main() {
+    var user = User(null, "hello")
+    println(user.toString())
+}
+```
+
+- 如果超类具有open .componentN()函数并返回兼容类型，则为数据类生成相应的函数，并覆盖超类型的函数。如果由于一些关键字导致无法重写父类对应的函数会导致直接报错。
+
+```kotlin
+abstract class AbstractUser {
+    // 此函数必须是open的，否则无法被数据类继承
+    open operator fun component1() = "hl"
+}
+
+// 编译不通过
+data class User(val id: String?, var name: String): AbstractUser() {
+}
+```
 
 
+
+- 不允许为.componentN()和.copy()函数提供显示实现
+
+注意，编译器会且只会根据主构造函数中定义的属性生成对应函数，如果有些时候我们不希望某些属性被添加到自动生成的函数中，我们每个需要手动将其移除主构造函数。
+
+#### 枚举
+
+// todo
+
+#### 匿名类和伴生对象
+
+```kotlin
+fun interface Person {
+    fun chat()
+}
+
+open class Human(val name: String)
+
+fun main() {
+    var obj = object: Human("小明"), Person { // 继承类时，同样需要调用其构造函数
+        fun test() {}
+        var age: Int = 10
+        override fun chat() {
+            TODO("Not yet implemented")
+        }
+
+        override fun toString(): String {
+            return "我是$name"  // 子类，直接使用父类的属性
+        }
+    }
+    
+    // 当Person存在两个方法时，lambda不支持
+    var p = Person {
+        println("hl wd")
+    }
+    
+    p.chat()
+}
+```
+
+#### 单例类
+
+使用`object`修饰。可以当作工具类使用。用起来和Java中的静态属性很类似，但是性质完全不一样
+
+```kotlin
+object Singleton {
+    val name = "name"
+}
+
+fun main() {
+    println(Singleton.name)
+}
+```
+
+#### 伴生类
+
+既支持单例类那样调用，又支持像一个普通class那样使用，可以使用伴生对象。
+
+```kotlin
+class Stu(val name: String, val age:Int) {
+    // 使用companion关键字在内部编写一个伴生对象，它同样是单例的
+    companion object Tools {
+        fun create(name: String, age: Int) = Stu(name, age)
+    }
+}
+
+fun main() {
+    Stu.create("姓名", 10)
+}
+```
+
+#### 委托
+
+```kotlin
+interface Base {
+    fun print()
+}
+
+class BaseImpl(val x:Int) : Base {
+    override fun print() {
+        println("hl world $x")
+    }
+    
+    // 属性也可委托
+    val y : Int by ::x
+}
+
+class Derived(private val base: Base): Base by base { // 使用by关键字将所有接口待实现操作委托给指定成员
+    override fun print() {
+        base.print()
+    }
+}
+
+fun main() {
+    val base: Base = Derived(BaseImpl(10))
+    base.print()
+}
+```
+
+#### 密封类
+
+使用`sealed`修饰。密封类将类的使用严格控制在了模块内部，包括密封接口及其实现也是如此：一旦编译了具有密封接口的模块，就不会出现新的实现类。
+
+```kotlin
+// 在其他包中使用这个密封类，在其他包或者模块中无法使用
+class C: A() // 编译错误，不在同一个模块
+
+fun main() {
+    val b = B() // 编译错误，不可以实例化
+}
+```

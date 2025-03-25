@@ -541,7 +541,7 @@ fun main() {
 
     
     val arrayInt: Array<Int> = arrayOf(1,2,3)
-    // 编译报错
+    // 编译报错，泛型擦除，被转换为Integer
     // testInt(*arrayInt)
 
     val intArrayOf = intArrayOf(1, 1)

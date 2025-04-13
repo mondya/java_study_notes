@@ -229,3 +229,30 @@ public class Car {
 `TypeExcludeFilter` 是 Spring Boot 提供的一个自定义过滤器，主要用于在测试场景中排除特定类型的组件。在生产环境的主启动类里，一般不需要这些测试相关的类型被扫描到，所以排除 `TypeExcludeFilter` 可以减少不必要的扫描，提高应用启动速度。
 
 `AutoConfigurationExcludeFilter` 用于排除自动配置类。在某些情况下，Spring Boot 的自动配置可能不符合你的需求，你可能已经手动配置了某些组件，或者不想让某些自动配置生效。排除 `AutoConfigurationExcludeFilter` 可以让你更精细地控制哪些自动配置类会被加载。
+
+#### @EableAutoConfiguration
+
+```java
+@AutoConfigurationPackage
+@Import(AutoConfigurationImportSelector.class)
+public @interface EnableAutoConfiguration {
+```
+
+##### @AutoConfigurationPackage
+
+```java
+@Import(AutoConfigurationPackages.Registrar.class)
+public @interface AutoConfigurationPackage {
+    
+// 利用Registrar给容器导入一系列组件
+// 将指定包下的所有组件导入spring容器
+```
+
+![image-20250413185115703](https://gitee.com/cnuto/images/raw/master/image/image-20250413185115703.png)
+
+##### @Import(AutoConfigurationImportSelector.class)
+
+```java
+// 利用
+```
+

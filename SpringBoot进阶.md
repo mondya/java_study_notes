@@ -224,7 +224,7 @@ public class Car {
 
 #### @ComponentScan
 
-==Spring 会扫描指定包及其子包下的所有类，将带有 `@Component`、`@Service`、`@Repository`、`@Controller` 等注解的类自动注册为 Spring Bean==
+==Spring 会扫描指定包及其子包下的所有类，将带有 `@Component`、`@Service`、`@Repository`、`@Controller` 等注解的类自动注册为 Spring Bean，目的是为了把开发者编写的业务类注册到==
 
 `TypeExcludeFilter` 是 Spring Boot 提供的一个自定义过滤器，主要用于在测试场景中排除特定类型的组件。在生产环境的主启动类里，一般不需要这些测试相关的类型被扫描到，所以排除 `TypeExcludeFilter` 可以减少不必要的扫描，提高应用启动速度。
 
@@ -249,6 +249,18 @@ public @interface AutoConfigurationPackage {
 ```
 
 ![image-20250413185115703](https://gitee.com/cnuto/images/raw/master/image/image-20250413185115703.png)
+
+##### @AutoConfigurationPackage和@ComponentScan的区别
+
+`@AutoConfigurationPackage`在默认的情况下是将：主配置类（`@SpringBootApplication`）的所在包及其子包里边的组件扫描到Spring容器中。比如说，你使用了Spring Data JPA，可能会在实体类上使用`@Entity`注解。这个注解由`@AutoConfigurationPackage`扫描加载，而我们开发常用的`@Controller`，`@Service`，`@Component`，`@Repository`这些注解由`@ComponentScan`来扫描加载。
+
+https://blog.itpub.net/70024922/viewspace-2953012/
+
+总结：
+
+- 两者都是用来扫描Bean的。
+- `@Component`用来扫描和Spring容器相关的Bean
+- `@AutoConfigurationPackage`用来扫描第三方的Bean。比如Mybatis的Mapper，除了使用`@MapperScan`扫描之外，使用`@AutoConfigurationPackage`扫描也是生效的。
 
 ##### @Import(AutoConfigurationImportSelector.class)
 

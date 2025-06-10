@@ -320,6 +320,21 @@ todo
 
 ![image-20230305150335811](https://gitee.com/cnuto/images/raw/master/image/image-20230305150335811.png)
 
+## Docker 容器打包和解压
+
+```shell
+# 打包，这种方式load后的镜像没有名称和tag
+docker save [镜像id] -o xxx.tar
+
+# 解压
+docker load -i xxx.tar
+
+# 镜像命名
+docker tag [镜像id] 新名称:tag
+```
+
+
+
 ## Docker容器数据卷
 
 卷就是目录或者文件，存在于一个或多个容器中，由docker挂载到容器，但不属于联合文件系统，因此能够绕过Union File System提供一些用户持续存储或数据共享的特性；卷的设计目的就是==数据的持久化==，完全独立于容器的生存周期，因此Docker不会在容器删除时删除其挂载的数据卷。

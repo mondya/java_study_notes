@@ -260,6 +260,25 @@ exec是在容器中打开新的终端，并且可以启动新的进程，用exit
 
 `docker stats`
 
+#### 镜像清理相关
+
+```sh
+# 清理未使用的镜像
+docker image prune -af
+# 清理停止的容器 慎用，容器我还是要保留的
+docker container prune -f
+# 清理未使用的卷
+docker volume prune -f
+# 清理未使用的网络
+docker network prune -f
+# 清理构建缓存(有用)
+docker builder prune -f
+# 打印清理结果
+docker system df
+# 清理所有未使用的容器、镜像、网络和数据卷，以上清理过程的合并操作。 慎用（幸好没用，不然之前下的image要重新下）
+docker system prune -a --volumes
+```
+
 ## 镜像的分层概念
 
 UnionFS(联合文件系统)：UnionFS文件系统是一种分层、轻量级并且高性能的文件系统，它支持对文件系统的修改作为一次提交来一层层叠加，同时可以将不同目录挂载到同一个虚拟文件系统下。Union文件系统是Docker镜像的基础。==镜像可以通过分层来进行继承==，基于基础镜像（没有父镜像），可以制作各种具体的应用镜像。
@@ -320,7 +339,7 @@ todo
 
 ![image-20230305150335811](https://gitee.com/cnuto/images/raw/master/image/image-20230305150335811.png)
 
-## Docker 容器打包和解压
+## Docker容器打包和解压
 
 ```shell
 # 打包，这种方式load后的镜像没有名称和tag

@@ -1,4 +1,4 @@
-# Kotlin
+#  Kotlin
 
 ## 初级
 
@@ -156,7 +156,7 @@ fun main() {
     // 相当于
     println("这是一个内联函数")
     val it = "helloWorld"
-    println("输出 :${it}")
+    println("输出 helloWorld")
 }
 
 inline fun test(str: String) {

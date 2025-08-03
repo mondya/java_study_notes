@@ -220,17 +220,17 @@ public class Car {
 
 #### @SpringBootConfiguration注解
 
-==被@Configuration注解修饰，代表这个一个配置类==
+==被@Configuration注解修饰，代表这个一个配置类（类似@Configuration注解）==
 
 #### @ComponentScan
 
-==Spring 会扫描指定包及其子包下的所有类，将带有 `@Component`、`@Service`、`@Repository`、`@Controller` 等注解的类自动注册为 Spring Bean，目的是为了把开发者编写的业务类注册到==
+==Spring 会扫描当前包、指定包及其子包下的所有类，将带有 `@Component`、`@Service`、`@Repository`、`@Controller` 等注解的类自动注册为 Spring Bean，目的是为了把开发者编写的业务类注册到容器==
 
 `TypeExcludeFilter` 是 Spring Boot 提供的一个自定义过滤器，主要用于在测试场景中排除特定类型的组件。在生产环境的主启动类里，一般不需要这些测试相关的类型被扫描到，所以排除 `TypeExcludeFilter` 可以减少不必要的扫描，提高应用启动速度。
 
 `AutoConfigurationExcludeFilter` 用于排除自动配置类。在某些情况下，Spring Boot 的自动配置可能不符合你的需求，你可能已经手动配置了某些组件，或者不想让某些自动配置生效。排除 `AutoConfigurationExcludeFilter` 可以让你更精细地控制哪些自动配置类会被加载。
 
-#### @EableAutoConfiguration
+#### @EableAutoConfiguration（自动装配的核心开关，出发自动配置逻辑）
 
 ```java
 @AutoConfigurationPackage
@@ -250,21 +250,110 @@ public @interface AutoConfigurationPackage {
 
 ![image-20250413185115703](https://gitee.com/cnuto/images/raw/master/image/image-20250413185115703.png)
 
-##### @AutoConfigurationPackage和@ComponentScan的区别
-
-`@AutoConfigurationPackage`在默认的情况下是将：主配置类（`@SpringBootApplication`）的所在包及其子包里边的组件扫描到Spring容器中。比如说，你使用了Spring Data JPA，可能会在实体类上使用`@Entity`注解。这个注解由`@AutoConfigurationPackage`扫描加载，而我们开发常用的`@Controller`，`@Service`，`@Component`，`@Repository`这些注解由`@ComponentScan`来扫描加载。
-
-https://blog.itpub.net/70024922/viewspace-2953012/
-
-总结：
-
-- 两者都是用来扫描Bean的。
-- `@Component`用来扫描和Spring容器相关的Bean
-- `@AutoConfigurationPackage`用来扫描第三方的Bean。比如Mybatis的Mapper，除了使用`@MapperScan`扫描之外，使用`@AutoConfigurationPackage`扫描也是生效的。
-
-##### @Import(AutoConfigurationImportSelector.class)
+##### @Import(AutoConfigurationImportSelector.class)（负责加载并筛选自动配置类）
 
 ```java
-// 利用
+public String[] selectImports(AnnotationMetadata metadata) {
+    // 1. 检查是否开启自动配置（默认开启）
+    if (!isEnabled(metadata)) {
+        return NO_IMPORTS;
+    }
+    // 2. 加载自动配置元数据（条件判断的依据）
+    AutoConfigurationMetadata autoConfigurationMetadata = AutoConfigurationMetadataLoader.loadMetadata(this.beanClassLoader);
+    // 3. 获取候选的自动配置类列表
+    // getCandidateConfigurations通过SPI机制加载预定义的自动配置类。在springboot2.7中，自动装配的位置有两个：
+    // 1.SpringBoot核心包（如spring-boot-autoconfigure）中，通过文件META-INF/spring/org.springframework.boot.autoconfigure.AUtoConfiguration.imports。已废弃旧版(META/spring.factories)
+    // 2.自定义Starter中的自动配置类。第三方 Starter（如 mybatis-spring-boot-starter）需在自己的 JAR 包中创建 META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports 文件，声明其自动配置类，Spring Boot 会自动扫描并加载。
+    List<String> configurations = getCandidateConfigurations(metadata, attributes);
+    // 4. 去重、排除用户指定的不需要的配置类
+    configurations = removeDuplicates(configurations);
+    Set<String> exclusions = getExclusions(metadata, attributes);
+    checkExcludedClasses(configurations, exclusions);
+    configurations.removeAll(exclusions);
+    // 5. 根据条件注解过滤（核心步骤）
+    configurations = filter(configurations, autoConfigurationMetadata);
+    // 6. 触发自动配置导入事件（供外部扩展）
+    fireAutoConfigurationImportEvents(configurations, exclusions);
+    return StringUtils.toStringArray(configurations);
+}
 ```
+
+![image-20250803184058209](https://gitee.com/cnuto/images/raw/master/image/image-20250803184058209.png)
+
+##### @AutoConfigurationPackage和@ComponentScan的区别
+
+`@AutoConfigurationPackage` 和 `@ComponentScan` 都是 Spring 中用于**指定 Bean 扫描范围**的注解，但它们的设计目的和作用场景有显著区别，主要体现在扫描目标和使用场景上。
+
+###### @ComponentScan：扫描用户自定义组件
+
+`@ComponentScan` 是 Spring 框架的核心注解，用于**扫描并注册用户编写的组件**（如 `@Component`、`@Service`、`@Controller`、`@Repository` 等注解标记的类）。
+
+###### 核心特性
+
+- **扫描目标**：用户代码中标记了 Spring 组件注解的类。
+- **默认行为**：若未指定 `basePackages` 或 `basePackageClasses`，默认扫描当前标注该注解的类所在的包及其子包 **。
+- **典型场景**：在 Spring 应用中手动指定需要扫描的包，确保自定义的 Service、Controller 等被 Spring 容器管理。
+
+###### **示例**
+
+```java
+// 扫描 com.example.demo 包及其子包下的所有组件
+@ComponentScan(basePackages = "com.example.demo")
+@Configuration
+public class AppConfig {
+}
+```
+
+###### @AutoConfigurationPackage：扫描自动配置相关的组件
+
+`@AutoConfigurationPackage` 是 Spring Boot 引入的注解，专门用于**标记自动配置类的 “默认包”**，主要服务于 Spring Boot 的自动装配机制。
+
+###### 核心特性
+
+- **扫描目标**：通常用于注册**自动配置类、实体类（如 JPA 实体）、配置属性类**等与自动装配相关的组件。
+- **默认行为**：将**标注该注解的类所在的包**注册为 “默认包”，Spring Boot 会自动扫描该包下的特定组件（如 `@Entity` 实体类）。
+- **底层实现**：通过 `@Import(AutoConfigurationPackages.Registrar.class)` 向 Spring 容器注册一个 `BasePackages` bean，记录包路径，供自动配置类（如 JPA、MyBatis 等）扫描使用。
+
+###### 示例
+
+Spring Boot 主类中，`@SpringBootApplication` 间接包含 `@AutoConfigurationPackage`：
+
+```java
+@SpringBootApplication // 隐含 @AutoConfigurationPackage
+public class DemoApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(DemoApplication.class, args);
+    }
+}
+// 此时，DemoApplication 所在的包（如 com.example.demo）会被注册为自动配置的默认包
+```
+
+###### 核心区别对比
+
+| 维度           | `@ComponentScan`                             | `@AutoConfigurationPackage`               |
+| -------------- | -------------------------------------------- | ----------------------------------------- |
+| **设计目的**   | 扫描用户自定义组件（Service、Controller 等） | 标记自动配置的基础包，服务于自动装配机制  |
+| **扫描目标**   | 带 `@Component` 等注解的类                   | 自动配置相关的组件（如实体类、配置类）    |
+| **依赖场景**   | 通用 Spring 应用                             | 仅 Spring Boot 自动装配场景               |
+| **默认包范围** | 注解所在类的包及其子包                       | 注解所在类的包（通常是主类所在包）        |
+| **典型使用者** | 开发者手动指定扫描范围                       | Spring Boot 自动配置类（如 JPA 自动配置） |
+
+###### 协同工作场景
+
+在 Spring Boot 应用中，两者通常**配合使用**：
+
+
+
+- `@ComponentScan`（通过 `@SpringBootApplication` 隐含）负责扫描用户编写的 `@Service`、`@Controller` 等组件。
+- `@AutoConfigurationPackage`（通过 `@SpringBootApplication` 隐含）负责标记默认包，供自动配置类（如 JPA 的 `EntityScan`）扫描实体类等特殊组件。
+
+
+
+例如，JPA 的自动配置会使用 `@AutoConfigurationPackage` 注册的包路径，自动扫描该包下的 `@Entity` 实体类，无需开发者开发者手动指定 `@EntityScan`。
+
+###### 总结
+
+- `@ComponentScan` 是 “通用扫描工具”，用于注册用户自定义组件。
+- `@AutoConfigurationPackage` 是 “自动配置的辅助工具”，用于标记基础包，供 Spring Boot 自动配置类扫描特定组件。
+- 两者在 Spring Boot 中通过 `@SpringBootApplication` 协同工作，前者应用的自动装配和组件管理更高效。
 

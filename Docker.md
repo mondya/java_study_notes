@@ -360,7 +360,7 @@ todo
 
 ```shell
 # 打包，这种方式load后的镜像没有名称和tag
-docker save [镜像id] -o xxx.tar
+docker save -o xxx.tar [镜像id/镜像名称:tag]
 
 # 解压
 docker load -i xxx.tar

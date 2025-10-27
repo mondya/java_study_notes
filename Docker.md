@@ -129,6 +129,14 @@ CREATED：镜像创建时间
 
 SIZE：镜像大小
 
+#### 更新镜像配置
+
+```bash
+docker update [OPTIONS] CONTAINER [CONTAINER...]
+```
+
+例如更新开机自启：docker update --restart=always mysql
+
 #### 下载/查询
 
 `docker search xxx` ：查询某个镜像
@@ -454,11 +462,27 @@ Docker挂载主机目录访问如果出现cannot open directory.:Permission deni
 
 `docker run -d -p 3306:3306 --privileged=true -v /xhh/mysql/log:/var/log/mysql -v /xhh/mysql/data:/var/lib/mysql -v /xhh/mysql/conf:/etc/mysql/conf.d -e MYSQL_ROOT_PASSWORD=xhh1999.02.10 --name=mysql mysql:8.0.18`
 
+mysql的文件配置地址有多个，配置合并，后加载的覆盖前面：
+
+- `/etc/mysql/conf.d`
+- `/etc/mysql/my.cnf`
+
 启动mysql，映射3306端口, 挂载mysql  log,data,conf目录，在conf目录中新建`my.cnf`文件，可添加utf8默认配置，解决5版本下不能插入中文数据问题
 
 ## Redis安装
 
 `docker run -d -p 6379:6379 --name=myredis --privileged=true -v /xhh/redis/redis.conf:/etc/redis/redis.conf -v /xhh/redis/data:/data redis redis-server /etc/redis/redis.conf`
+
+==注意需要先建立redis.conf文件==
+
+数据持久化，添加密码：
+
+```conf
+appendonly yes
+requirepass xhh1999.02.10
+```
+
+
 
 在主机上新建redis相关目录，与docker镜像中的redis配置文件进行映射，指定redis的配置文件启动，`redis-cli`进入redis
 
@@ -1040,7 +1064,7 @@ ADD spring-twoSon-1.0.jar xhh_test.jar
 
 # 运行jar包
 RUN bash -c 'touch /xhh_test.jar'
-ENTRYPOINT ["java", "-jar", "/xhh_test.jar"]
+ENTRYPOINT ["java", "-jar", "/xhh_test.jar", "--spring.profiles.active=prod"]
 
 # 暴露6001端口作为微服务端口
 EXPOSE 6001

@@ -19,7 +19,7 @@ sudo yum remove docker \
                   docker-engine
 ```
 
-### yum安装gcc
+### yum安装gcc（可不安装）
 
 ```bash
 yum -y install gcc
@@ -76,6 +76,14 @@ systemctl start docker
 ```
 
 ![image-20230221224431445](https://gitee.com/cnuto/images/raw/master/image/image-20230221224431445.png)
+
+### 开机自启
+
+```bash
+sytemctl enable docker
+```
+
+
 
 ### helloWord
 

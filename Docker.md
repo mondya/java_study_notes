@@ -93,6 +93,10 @@ sytemctl enable docker
 docker run hello-world
 ```
 
+### 注意点
+
+需要注意磁盘的挂载情况：`df -h`
+
 ## 命令
 
 ### 帮助启动类命令

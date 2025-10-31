@@ -14,6 +14,22 @@
 
 https://developer.aliyun.com/article/1334886
 
+## k8s常用命令
+
+```bash
+# 查看集群所有节点
+kubectl get nodes
+
+# 根据配置文件，给集群创建资源
+kubectl apply -f xxx.yaml
+
+# 查看集群部署了哪些应用
+docker ps
+kubectl get pods -A
+```
+
+
+
 ## kubeadm创建集群
 
 官方地址：https://kubernetes.io/zh-cn/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
@@ -124,3 +140,147 @@ sudo yum install -y kubelet-1.20.9 kubeadm-1.20.9 kubectl-1.20.9 --disableexclud
 sudo systemctl enable --now kubelet
 ```
 
+#### 下载机器需要的镜像
+
+```bash
+sudo tee ./images.sh <<-'EOF'
+#!/bin/bash
+images=(
+kube-apiserver:v1.20.9
+kube-proxy:v1.20.9
+kube-controller-manager:v1.20.9
+kube-scheduler:v1.20.9
+coredns:1.7.0
+etcd:3.4.13-0
+pause:3.2
+)
+for imageName in ${images[@]} ; do
+docker pull registry.cn-hangzhou.aliyuncs.com/lfy_k8s_images/$imageName
+done
+EOF
+
+```
+
+```bash
+# 启动sh脚本拉取镜像
+chmod +x ./images.sh && ./images.sh
+```
+
+#### 初始化主节点
+
+```bash
+# 注意：这里的ip需要更换成自己的ip
+echo "172.26.243.229 cluster-endpoint" >> /etc/hosts 
+
+# 主节点运行
+# 注意avertise-address=主机地址
+# service的ip和pod的ip和ecs主机的ip段不能冲突
+kubeadm init \
+--apiserver-advertise-address=172.26.243.229 \
+--control-plane-endpoint=cluster-endpoint \
+--image-repository registry.cn-hangzhou.aliyuncs.com/lfy_k8s_images \
+--kubernetes-version v1.20.9 \
+--service-cidr=10.96.0.0/16 \
+--pod-network-cidr=192.168.0.0/16
+```
+
+![image-20251101001401893](https://gitee.com/cnuto/images/raw/master/image/image-20251101001401893.png)
+
+> 初始化成功后
+
+##### 使用集群前，需要执行命令
+
+```bash
+  mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+```
+
+##### 添加主节点命令
+
+24小时有效，失效后重新获取
+
+```bash
+  kubeadm join cluster-endpoint:6443 --token h0m858.8bxii6weh9oejlrx \
+    --discovery-token-ca-cert-hash sha256:9f6e6d37f2c6352f7ad3877a8d066fef84d9c986bb2b8816dab84cf5a744f4e4 \
+    --control-plane 
+```
+
+
+
+##### 添加worker节点命令
+
+24小时有效，失效后重新获取
+
+```bash
+kubeadm join cluster-endpoint:6443 --token h0m858.8bxii6weh9oejlrx \
+    --discovery-token-ca-cert-hash sha256:9f6e6d37f2c6352f7ad3877a8d066fef84d9c986bb2b8816dab84cf5a744f4e4 
+```
+
+
+
+```text
+Your Kubernetes control-plane has initialized successfully!
+
+To start using your cluster, you need to run the following as a regular user:
+
+# 在使用集群前，需要执行以下命令
+  mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+Alternatively, if you are the root user, you can run:
+
+  export KUBECONFIG=/etc/kubernetes/admin.conf
+
+You should now deploy a pod network to the cluster.
+Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at:
+  https://kubernetes.io/docs/concepts/cluster-administration/addons/
+
+You can now join any number of control-plane nodes by copying certificate authorities
+and service account keys on each node and then running the following as root:
+
+# 添加主节点
+  kubeadm join cluster-endpoint:6443 --token h0m858.8bxii6weh9oejlrx \
+    --discovery-token-ca-cert-hash sha256:9f6e6d37f2c6352f7ad3877a8d066fef84d9c986bb2b8816dab84cf5a744f4e4 \
+    --control-plane 
+
+Then you can join any number of worker nodes by running the following on each as root:
+# 添加worker节点
+kubeadm join cluster-endpoint:6443 --token h0m858.8bxii6weh9oejlrx \
+    --discovery-token-ca-cert-hash sha256:9f6e6d37f2c6352f7ad3877a8d066fef84d9c986bb2b8816dab84cf5a744f4e4 
+```
+
+#### 安装网络组件
+
+calico
+
+```bash
+curl https://docs.projectcalico.org/manifests/calico.yaml -O
+# 上面地址已经失效
+# Calico 版本需与 K8s 版本对应
+# 官方归档（v3.17 版本，适配 K8s v1.20
+curl -O https://docs.projectcalico.org/archive/v3.17/manifests/calico.yaml
+
+# 若官方地址访问慢，可使用 Tigera（Calico 母公司）的归档镜像
+curl -O https://calico-archive.tigera.io/v3.17/manifests/calico.yaml
+
+
+kubectl apply -f calico.yaml
+```
+
+![image-20251101005140938](https://gitee.com/cnuto/images/raw/master/image/image-20251101005140938.png)
+
+#### 查看节点状态
+
+执行命令`kubectl get nodes`，只能在主节点执行
+
+![image-20251101005827246](https://gitee.com/cnuto/images/raw/master/image/image-20251101005827246.png)
+
+#### 添加Woker节点
+
+使用上面的添加节点命令
+
+![image-20251101012459614](https://gitee.com/cnuto/images/raw/master/image/image-20251101012459614.png)
+
+![image-20251101015229959](https://gitee.com/cnuto/images/raw/master/image/image-20251101015229959.png)

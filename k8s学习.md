@@ -26,6 +26,10 @@ kubectl apply -f xxx.yaml
 # 查看集群部署了哪些应用
 docker ps
 kubectl get pods -A
+
+
+# master节点创建加入woker节点的token
+kubeadm token create --print-join-command
 ```
 
 
@@ -168,6 +172,8 @@ chmod +x ./images.sh && ./images.sh
 
 #### 初始化主节点
 
+
+
 ```bash
 # 注意：这里的ip需要更换成自己的ip
 echo "172.26.243.229 cluster-endpoint" >> /etc/hosts 
@@ -199,6 +205,11 @@ kubeadm init \
 ##### 添加主节点命令
 
 24小时有效，失效后重新获取
+
+```bash
+# master节点输入此命令创建token
+kubeadm token create --print-join-command
+```
 
 ```bash
   kubeadm join cluster-endpoint:6443 --token h0m858.8bxii6weh9oejlrx \
@@ -255,6 +266,10 @@ kubeadm join cluster-endpoint:6443 --token h0m858.8bxii6weh9oejlrx \
 
 calico
 
+如果上面在初始化主节点时，pod 更换了ip，需要在calico.yaml文件中更改
+
+![image-20251101145337140](https://gitee.com/cnuto/images/raw/master/image/image-20251101145337140.png)
+
 ```bash
 curl https://docs.projectcalico.org/manifests/calico.yaml -O
 # 上面地址已经失效
@@ -284,3 +299,180 @@ kubectl apply -f calico.yaml
 ![image-20251101012459614](https://gitee.com/cnuto/images/raw/master/image/image-20251101012459614.png)
 
 ![image-20251101015229959](https://gitee.com/cnuto/images/raw/master/image/image-20251101015229959.png)
+
+### 部署dashboard
+
+```bash
+# 时间太慢，建议看镜像版本
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.3.1/aio/deploy/recommended.yaml
+```
+
+#### 设置访问端口
+
+**type: ClusterIP更改为type: NodePort**
+
+```bash
+kubectl edit svc kubernetes-dashboard -n kubernetes-dashboard
+```
+
+```bash
+kubectl get svc -A |grep kubernetes-dashboard
+```
+
+![image-20251101152002732](https://gitee.com/cnuto/images/raw/master/image/image-20251101152002732.png)
+
+#### 创建访问账号
+
+```yaml
+# 创建访问账号，准备一个yaml文件；vim dash-usr.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: admin-user
+  namespace: kubernetes-dashboard
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: admin-user
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: admin-user
+  namespace: kubernetes-dashboard
+  
+```
+
+![image-20251101154348295](https://gitee.com/cnuto/images/raw/master/image/image-20251101154348295.png)
+
+#### 获取访问令牌
+
+```bash
+# 获取访问令牌
+kubectl -n kubernetes-dashboard get secret $(kubectl -n kubernetes-dashboard get sa/admin-user -o jsonpath="{.secrets[0].name}") -o go-template="{{.data.token | base64decode}}"
+
+```
+
+```bash
+eyJhbGciOiJSUzI1NiIsImtpZCI6ImNQemc0WU9fcXJyajNTLXlCSnUyOHVKNG92NGN5VWVVQ3JRRy1jaURpUHMifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlcm5ldGVzLWRhc2hib2FyZCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJhZG1pbi11c2VyLXRva2VuLTZ3dGd6Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQubmFtZSI6ImFkbWluLXVzZXIiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiJlODdjMTI2Ny1mYjg5LTRiMDQtOTE1Mi02NzM0MGUxYTliYmQiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6a3ViZXJuZXRlcy1kYXNoYm9hcmQ6YWRtaW4tdXNlciJ9.iyhSde8SlpF7IOX27Bh7VwzJ_NEcjRPKzewYgs1V1mJt5rsc_zgCXhnuDIYX5GZsPZU_NjiHCVqIPaXtpoUnApN-qCt_8kHKY-Wp096TQP-AKv2SXlclGYAhtjHJAQwOkkbtAd_loFr86ARRXbHM41OSVuIGBT3PAu6ntpJRIciUIRVxLuW8baVrRcqZLJz386k-jw6mDxGQ4LPDCBY2j8HzmkRWf6PJ4PiVjbE3IbKD4mgVTbCArFhJATSUhliw6xqEIzSOuFi6xc3YwfxNbEaC3QHa8j5_q36SI6oA-bSjWlB3T0VVW7vBDiC6fqVfOqmGKuGmT-j7tvTREcQ2UQ
+```
+
+![image-20251101191748638](https://gitee.com/cnuto/images/raw/master/image/image-20251101191748638.png)
+
+### 命名空间
+
+```bash
+# 添加命名空间
+kubectl create ns xhh
+
+# 删除命名空间
+kubectl delete ns xhh
+
+# 查看命名空间
+kubectl get ns
+```
+
+#### yaml文件格式创建
+
+执行`kubectl apply -f xxx.yaml`
+
+```yaml
+apiVersion: v1
+kind: NameSpace
+metadata:
+  name: xhh
+```
+
+### 创建Pod
+
+```
+kubectl run mynginx --image=nginx
+
+# 描述pod：用来排查问题
+kubectl describe pod [Pod名称]
+```
+
+#### yaml文件格式创建
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: mynginx
+  name: mynginx
+spec:
+  containers:
+  - image: nginx
+    name: mynginx
+```
+
+#### Pod包含多个服务
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: myapp
+  name: myapp
+spec:
+  containers:
+  - image: nginx
+    name: nginx
+  - image: tomcat:8.5.68
+    name: tomcat
+
+```
+
+
+
+### 删除Pod
+
+```bash
+# 删除指定Pod，如果Pod不在默认命名空间，后面追加参数
+kubectl delete pod [镜像名称] -n [命名空间]
+```
+
+## Deployment
+
+> 控制Pod，使Pod拥有多个副本，自愈，扩缩容等能力
+
+```bash
+kubectl create deployment mytomcat --image=tomcat:8.5.68
+```
+
+![image-20251102005034884](https://gitee.com/cnuto/images/raw/master/image/image-20251102005034884.png)
+
+使用deployment创建的Pod，用kubectl delete pod删除Pod，Pod会重新生成一个
+
+```bash
+kubectl delete deployment mytomcat
+```
+
+### 多副本
+
+```bash
+kubectl create deployment my-dep --image=nginx --replicas=3
+```
+
+![image-20251102005847659](https://gitee.com/cnuto/images/raw/master/image/image-20251102005847659.png)
+
+等同于
+
+![image-20251102010158890](https://gitee.com/cnuto/images/raw/master/image/image-20251102010158890.png)
+
+### 扩缩容
+
+```bash
+kubectl scale deploy/my-dep --replicas=5
+```
+
+![image-20251102011112775](https://gitee.com/cnuto/images/raw/master/image/image-20251102011112775.png)
+
+### 自愈
+
+容器被删除或者ecs故障后会主动恢复到replicas节点数

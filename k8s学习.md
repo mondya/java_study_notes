@@ -14,6 +14,8 @@
 
 https://developer.aliyun.com/article/1334886
 
+![image-20251102151845133](https://gitee.com/cnuto/images/raw/master/image/image-20251102151845133.png)
+
 ## k8s常用命令
 
 ```bash
@@ -27,6 +29,8 @@ kubectl apply -f xxx.yaml
 docker ps
 kubectl get pods -A
 
+# 使用标签查询pod
+kubectl get pod -l app=app名称
 
 # master节点创建加入woker节点的token
 kubeadm token create --print-join-command
@@ -264,7 +268,7 @@ kubeadm join cluster-endpoint:6443 --token h0m858.8bxii6weh9oejlrx \
 
 #### 安装网络组件
 
-calico
+##### calico
 
 如果上面在初始化主节点时，pod 更换了ip，需要在calico.yaml文件中更改
 
@@ -361,6 +365,12 @@ eyJhbGciOiJSUzI1NiIsImtpZCI6ImNQemc0WU9fcXJyajNTLXlCSnUyOHVKNG92NGN5VWVVQ3JRRy1j
 ```
 
 ![image-20251101191748638](https://gitee.com/cnuto/images/raw/master/image/image-20251101191748638.png)
+
+#### 进入dashboard
+
+https://47.98.245.107:31489/#/login
+
+![image-20251102153156583](https://gitee.com/cnuto/images/raw/master/image/image-20251102153156583.png)
 
 ### 命名空间
 
@@ -476,3 +486,527 @@ kubectl scale deploy/my-dep --replicas=5
 ### 自愈
 
 容器被删除或者ecs故障后会主动恢复到replicas节点数
+
+### 滚动更新
+
+```bash
+kubectl set image deployment/my-dep nginx=nginx:1.16.1 --record
+
+# 查看名为 my-dep 的 Deployment 的滚动更新状态
+kuebectl rollout status deployment/my-dep
+```
+
+```bash
+# 或者使用kubectl edit deployment/my-dept   更改Yaml文件中的镜像
+```
+
+
+
+![image-20251102150518616](https://gitee.com/cnuto/images/raw/master/image/image-20251102150518616.png)
+
+### 版本回退
+
+```bash
+# 查看历史记录
+kubectl rollout history deployment/my-dep
+
+# 查看某个历史的详情
+kubectl rollout history deployment/my-dep --version=2
+
+# 回滚（回到上次）
+kubectl rollout undo deployment/my-dep
+
+# 回滚（回滚到指定版本）
+kubectl rollout undo deployment/my-dep --to-version=2
+```
+
+## Service
+
+将一组Pods公开为网络服务的抽象方法
+
+```bash
+# 默认为ClusterIP，服务名.空间名称.svc:8000只能在集群内部访问
+kubectl expose deploy my-dep --port=8000 --target-port=80 --type=ClusterIP
+
+# 集群外访问
+kubectl expose deploy my-dep --port=8000 --target-port=80 --type=NodePort
+```
+
+==使用NodePort创建的service，端口的范围30000-32767之间==
+
+对应yaml文件：
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: my-dep
+  name: my-dep
+spec:
+  selector:
+    app: my-dep
+    ports:
+    - port: 8000
+      protocol: TCP
+      targetPort: 80
+```
+
+
+
+![image-20251102155151318](https://gitee.com/cnuto/images/raw/master/image/image-20251102155151318.png)
+
+![image-20251102153745621](https://gitee.com/cnuto/images/raw/master/image/image-20251102153745621.png)
+
+### 访问方式
+
+#### ip+端口
+
+#### 服务名
+
+`服务名.所在服务空间.svc`：**这种方式只能在Pod内部才能够访问，外部master和worker节点主机上是不能访问的。**
+
+例如：`my-dep.default.svc:8000`
+
+## Ingress
+
+Service的统一网关入口
+
+![image-20251102172302184](https://gitee.com/cnuto/images/raw/master/image/image-20251102172302184.png)
+
+### 安装
+
+```bash
+# Gitee 镜像（v0.47.0 版本）
+wget https://gitee.com/mirrors/ingress-nginx/raw/controller-v0.47.0/deploy/static/provider/baremetal/deploy.yaml
+
+# 下载名称为deploy.yaml，为了防止冲突，改名为ingress.yaml
+cp deploy.yaml ingress.yaml
+
+# 把yaml文件中的镜像地址更换
+image: registry.cn-hangzhou.aliyuncs.com/lfy_k8s_images/ingress-nginx-controller:v0.46.0
+
+# 在service中产生ClusterIP和NodePort两个Service
+kubectl apply -f ingress.yaml
+```
+
+![image-20251102175037217](https://gitee.com/cnuto/images/raw/master/image/image-20251102175037217.png)
+
+输入http://47.98.245.107:31480 返回404
+
+![image-20251102193338104](https://gitee.com/cnuto/images/raw/master/image/image-20251102193338104.png)
+
+### Demo测试
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-host-bar
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: "hello.atguigu.com"
+    http:
+      paths:
+      - pathType: Prefix  
+        path: "/"
+        backend:
+          service:
+            name: hello-server
+            port:
+              number: 8000 
+  - host: "demo.atguigu.com"  
+    http:
+      paths:
+      - pathType: Prefix 
+        path: "/nginx"
+        backend:
+          service:
+            name: nginx-demo
+            port:
+              number: 8000 
+```
+
+![image-20251102182650596](https://gitee.com/cnuto/images/raw/master/image/image-20251102182650596.png)
+
+> 为什么 path: "/nginx" 和path: "/"会有不同404结果
+
+paht: "/nginx" 进去Pod，404由Pod中的nginx透出
+
+path: "/" 404由Ingress报出
+
+### 路径重写
+
+在部署yaml文件metadata下添加：
+
+```yaml
+metadata:
+  onannotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+```
+
+### 流量限制
+
+// TODO
+
+### 网络模型总结
+
+![image-20251102190823492](https://gitee.com/cnuto/images/raw/master/image/image-20251102190823492.png)
+
+## 存储抽象
+
+### 环境准备
+
+#### 所有节点安装nfs
+
+```bash
+# 所有机器安装
+yum install -y nfs-utils
+```
+
+#### 主节点
+
+```bash
+# nfs主节点
+echo "/nfs/data/ *(insecure,rw,sync,no_root_squash)"> /etc/exports
+mkdir -p /nfs/data
+systemctl enable rpcbind --now
+systemctl enable nfs-server --now
+#配置生效
+exportfs -r
+```
+
+#### 从节点
+
+```bash
+showmount -e [自己ip]
+#执行以下命令挂载nfs服务器上的共享目录到本机路径/root/nfsmount
+mkdir -p /nfs/mount
+mount -t nfs [自己ip]:/nfs/data /nfs/mount
+#写入一个测试文件
+echo "hello nfs server" > /nfs/mount/test.txt
+```
+
+
+
+```bash
+showmount -e 172.26.243.229
+#执行以下命令挂载nfs服务器上的共享目录到本机路径/root/nfsmount
+mkdir -p /nfs/mount
+mount -t nfs 172.26.243.229:/nfs/data /nfs/mount
+#写入一个测试文件
+echo "hello nfs server" > /nfs/mount/test.txt
+```
+
+![image-20251102201201375](https://gitee.com/cnuto/images/raw/master/image/image-20251102201201375.png)
+
+### 挂载
+
+#### 原生挂载
+
+缺点：
+
+- 指定文件夹不会自动创建，需要手动创建
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: nginx-pv-demo
+  name: nginx-pv-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx-pv-demo
+  template:
+    metadata:  
+      labels:
+        app: nginx-pv-demo
+    spec:
+      containers:  
+      - image: nginx
+        name: nginx
+        volumeMounts:
+        - name: html
+          mountPath: /usr/share/nginx/html  
+      volumes:  
+      - name: html  
+        nfs:  
+          server: 172.26.243.229
+          path: /nfs/data/nginx-pv
+```
+
+```bash
+# 在/nfs/data/nginx-pv 目录下执行
+echo "111222" > index.html
+```
+
+进入容器内部：
+
+![image-20251102205446432](https://gitee.com/cnuto/images/raw/master/image/image-20251102205446432.png)
+
+#### PV&PVC
+
+`PV`：PersistenVolume 持久卷
+
+`PVC`：PersistenVolumeClaim 持久卷声明
+
+##### 创建PV池
+
+> 静态供应
+
+```bash
+#nfs主节点
+mkdir -p /nfs/data/01
+mkdir -p /nfs/data/02
+mkdir -p /nfs/data/03
+```
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv01-10m
+spec:
+  capacity:
+    storage: 10M
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs
+  nfs:
+    path: /nfs/data/01
+    server: 172.26.243.229
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv02-1gi
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs
+  nfs:
+    path: /nfs/data/02
+    server: 172.26.243.229
+---
+apiVersion: v1 
+kind: PersistentVolume
+metadata:
+  name: pv03-3gi
+spec:
+  capacity:
+    storage: 3Gi
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs
+  nfs:
+    path: /nfs/data/03
+    server: 172.26.243.229
+```
+
+![image-20251102223247033](https://gitee.com/cnuto/images/raw/master/image/image-20251102223247033.png)
+
+```bash
+kubectl get pv
+```
+
+
+
+![image-20251102223311736](https://gitee.com/cnuto/images/raw/master/image/image-20251102223311736.png)
+
+##### PVC创建与绑定
+
+申请一个200M的PVC
+
+```yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: nginx-pvc  
+spec:
+  accessModes:     
+    - ReadWriteMany  
+  resources:       
+    requests:      
+      storage: 10M  
+  storageClassName: nfs
+```
+
+```bash
+kubectl get pvc
+```
+
+![image-20251102223824804](https://gitee.com/cnuto/images/raw/master/image/image-20251102223824804.png)
+
+##### 创建POD绑定PVC
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: nginx-deploy-pvc
+  name: nginx-deploy-pvc
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx-deploy-pvc
+  template:
+    metadata:  
+      labels:
+        app: nginx-deploy-pvc
+    spec:
+      containers:  
+      - image: nginx
+        name: nginx
+        volumeMounts:
+        - name: html
+          mountPath: /usr/share/nginx/html  
+      volumes:  
+      - name: html  
+        persistentVolumeClaim:
+          claimName: nginx-pvc
+```
+
+![image-20251102224503814](https://gitee.com/cnuto/images/raw/master/image/image-20251102224503814.png)
+
+> 进入/nfs/data/01， echo "hello world" > index.html，进入容器内部
+
+![image-20251102224806676](https://gitee.com/cnuto/images/raw/master/image/image-20251102224806676.png)
+
+## ConfigMap
+
+抽取应用配置，并且可以自动更新
+
+### redis示例
+
+```bash
+# 创建配置，redis配置保存到k8s的etcd
+kubectl create cm redis-conf --from-file=redis.conf
+```
+
+```yaml
+apiVersion:v1
+  data:
+    redis.conf:
+      appendonly yes
+kind: ConfigMap
+metadata:
+  name: redis-conf
+  namespace: default
+```
+
+![image-20251102225437318](https://gitee.com/cnuto/images/raw/master/image/image-20251102225437318.png)
+
+```bash
+# 以yaml格式查看redis-conf
+kubectl get cm redis-conf -oyaml
+```
+
+以yaml格式查看redis-conf
+
+```yaml
+apiVersion: v1
+data:   # data下存放数据
+  redis.conf: |
+    appendonly yes
+kind: ConfigMap
+metadata:
+  creationTimestamp: "2025-11-02T14:54:18Z"
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:data:
+        .: {}
+        f:redis.conf: {}
+    manager: kubectl-create
+    operation: Update
+    time: "2025-11-02T14:54:18Z"
+  name: redis-conf
+  namespace: default
+  resourceVersion: "169103"
+  uid: b5f18445-97b4-49ce-aace-59918c816638
+```
+
+##### 创建POD
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: redis
+spec:
+  containers:
+  - name: redis
+    image: redis
+    command:
+    - redis-server
+    - "/redis-master/redis.conf"  # 指的是redis容器内部的位置
+    ports:
+    - containerPort: 6379
+    volumeMounts:
+    - mountPath: /data
+      name: data
+    - mountPath: /redis-master
+      name: config
+  volumes:
+  - name: data
+    emptyDir: {}
+  - name: config
+    configMap:
+      name: redis-conf
+      items:
+      - key: redis.conf  # 从configMap中获取key为redis.conf的key
+        path: redis.conf # 从configMap中获取key为redis.conf的路径 
+```
+
+##### 注意点
+
+redis自身不会热更新，配置更改后需要重启POD才会生效。
+
+## Secret
+
+Secret对象类型用来保存敏感信息，例如密码、OAUTH令牌和SSH密钥。将这些信息保存在secret中比放在POD的定义或者容器镜像内更加安全和灵活。
+
+```bash
+kubectl create secret docker-registry leifengyang-docker\
+  --docker-username=leifengyang\
+  --docker-password=Lfy123456 \
+  --docker-email=534096094@qq.com
+#命令格式
+kubectl create secret docker-registry regcred \
+  --docker-server=<你的镜像仓库服务器>\
+  --docker-username=<你的用户名>\
+  --docker-password=<你的密码>\
+  --docker-email=<你的邮箱地址>
+```
+
+```bash
+kubectl create secret docker-registry xhh \
+  --docker-server=crpi-23kczhfnz9e8k3ge.cn-hangzhou.personal.cr.aliyuncs.com \
+  --docker-username=xhh19990210  \
+  --docker-password=密码 \
+  --docker-email=xhh19990210@gmail.com
+```
+
+```yaml
+# 部署POD时指定secret
+apiVersion:v1
+kind:Pod
+metadata:
+  name: private-nginx
+spec:
+  containers:
+  - name: private-nginx
+    image: xhh/guignginx:v1.0
+  imagePullSecrets:
+  - name: xhh
+```
+

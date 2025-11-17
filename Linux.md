@@ -211,7 +211,7 @@ chmod [-R] xyz 文件或目录
 
 **-R**：进行递归的持续变更
 
-![1618725556458](https://gitee.com/cnuto/images/raw/master/image/1618725556458.png)
+xxxxxxxxxx // 在其他包中使用这个密封类，在其他包或者模块中无法使用class C: A() // 编译错误，不在同一个模块​fun main() {    val b = B() // 编译错误，不可以实例化}kotlin
 
 ## 文件内容查看
 

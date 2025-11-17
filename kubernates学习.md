@@ -48,6 +48,8 @@ kubeadm token create --print-join-command
 
 #### 安装Docker
 
+见文档
+
 #### 设置主机名
 
 ```bash
@@ -116,7 +118,7 @@ exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
 EOF
 ```
 
-> 视频教程版本
+> 视频教程版本（使用的阿里云镜像源）
 
 ```bash
 # 此操作会覆盖 /etc/yum.repos.d/kubernetes.repo 中现存的所有配置
@@ -141,14 +143,14 @@ sudo yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
 sudo systemctl enable --now kubelet
 ```
 
-> 视频教程
+> 视频教程（指定版本号）
 
 ```bash
 sudo yum install -y kubelet-1.20.9 kubeadm-1.20.9 kubectl-1.20.9 --disableexcludes=kubernetes
 sudo systemctl enable --now kubelet
 ```
 
-#### 下载机器需要的镜像
+#### 下载机器需要的镜像（这步可不做）
 
 ```bash
 sudo tee ./images.sh <<-'EOF'
@@ -176,12 +178,30 @@ chmod +x ./images.sh && ./images.sh
 
 #### 初始化主节点
 
-
+1. **`cluster-endpoint` 映射到 LB VIP**
+   - 这是最关键的配置，所有节点（包括新加入的 Master 或 Worker）都通过 `cluster-endpoint:6443` 访问 API Server，而 LB 会将流量转发到所有 Master 节点的 6443 端口（实现高可用）。
+   - 即使未来新增更多 Master 节点，`cluster-endpoint` 的映射无需修改，只需更新 LB 的后端节点列表。
+2. **Master 节点的主机名与 IP 映射**
+   - 多 Master 节点之间需要同步证书、通信等，通过主机名映射可以避免直接依赖 IP（例如证书中可能包含主机名）。
+   - 确保所有节点（包括自身）都能通过 `master01`、`master02` 等主机名 ping 通对应的 Master 节点。
+3. **Worker 节点的映射（可选）**
+   - 如果需要通过主机名管理 Worker 节点（例如 SSH 登录、日志收集等），可以添加 Worker 节点的 IP 和主机名映射，否则可省略。
 
 ```bash
 # 注意：这里的ip需要更换成自己的ip
+# 集群统一的 API 访问端点（指向负载均衡器 VIP）
 echo "172.26.243.229 cluster-endpoint" >> /etc/hosts 
 
+
+# 在没有负载均衡的情况下
+172.26.243.229  master01
+172.26.243.231  master02
+172.26.243.229  cluster-endpoint  # 临时将 cluster-endpoint 指向 master01（无 LB 时的替代方案）
+```
+
+
+
+```bash
 # 主节点运行
 # 注意avertise-address=主机地址
 # service的ip和pod的ip和ecs主机的ip段不能冲突
@@ -192,6 +212,16 @@ kubeadm init \
 --kubernetes-version v1.20.9 \
 --service-cidr=10.96.0.0/16 \
 --pod-network-cidr=192.168.0.0/16
+
+# 参数解释
+kubeadm init \
+  --apiserver-advertise-address=172.26.243.229 \  # 第一台 Master 自身的 IP（必须是节点实际 IP）
+  --control-plane-endpoint=cluster-endpoint \     # 关键：指向负载均衡器的统一入口（cluster-endpoint）
+  --image-repository registry.cn-hangzhou.aliyuncs.com/lfy_k8s_images \  # 阿里云镜像仓库（加速拉取）
+  --kubernetes-version v1.20.9 \                  # Kubernetes 版本（需与后续节点一致）
+  --service-cidr=10.96.0.0/16 \                   # Service 网段（不可与主机/Pod 网段冲突）
+  --pod-network-cidr=192.168.0.0/16 \             # Pod 网段（不可与主机/Service 网段冲突）
+  --upload-certs                                  # 关键：自动上传控制平面证书（用于后续 Master 节点加入）
 ```
 
 ![image-20251101001401893](https://gitee.com/cnuto/images/raw/master/image/image-20251101001401893.png)
@@ -526,6 +556,7 @@ kubectl rollout undo deployment/my-dep --to-version=2
 
 ```bash
 # 默认为ClusterIP，服务名.空间名称.svc:8000只能在集群内部访问
+# --port为暴露的端口，--target-port为POD服务的端口
 kubectl expose deploy my-dep --port=8000 --target-port=80 --type=ClusterIP
 
 # 集群外访问
@@ -566,7 +597,11 @@ spec:
 
 `服务名.所在服务空间.svc`：**这种方式只能在Pod内部才能够访问，外部master和worker节点主机上是不能访问的。**
 
-例如：`my-dep.default.svc:8000`
+实际`my-dep.default.svc:8000`，`my-dep.default.svc.cluster.local:8000`，`my-dep:8000`都访问到了
+
+#### 原理
+
+![image-20251107233943440](https://gitee.com/cnuto/images/raw/master/image/image-20251107233943440.png)
 
 ## Ingress
 
@@ -1010,3 +1045,26 @@ spec:
   - name: xhh
 ```
 
+# KubeSphere
+
+## Kubernates安装KubeSphere
+
+### 安装Docker
+
+见文档
+
+### 安装Kubernates
+
+见文档
+
+### 安装KubeSphere前置环境
+
+#### 安装nfs-server
+
+
+
+### 安装KubeSphere
+
+## Linux单节点部署KubeSphere
+
+## Linux多节点部署KubeSphere

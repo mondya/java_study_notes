@@ -19,6 +19,14 @@ sudo yum remove docker \
                   docker-engine
 ```
 
+或者使用
+
+```bash
+sudo yum remove docker*
+```
+
+
+
 ### yum安装gcc（可不安装）
 
 ```bash

@@ -1049,6 +1049,8 @@ spec:
 
 ## Kubernates安装KubeSphere
 
+2025.08 KubeSphere闭源。最后一个开源版本：v3.4.1。Kubesphere文档：[openksc.github.io/zh/](https://link.juejin.cn/?target=https%3A%2F%2Fopenksc.github.io%2Fzh%2F)
+
 ### 安装Docker
 
 见文档
